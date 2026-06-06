@@ -1,7 +1,7 @@
 import streamlit as st
 
-from Tarea_4_5.vectordb.rag import ask_rag
-from Tarea_4_5.vectordb.agent import run_agent
+from rag import ask_rag
+from agent import run_agent
 
 # ==================================================
 # CONFIG

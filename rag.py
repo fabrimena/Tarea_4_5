@@ -6,7 +6,7 @@ load_dotenv()
 from langfuse.openai import openai
 from langfuse import get_client
 
-from Tarea_4_5.vectordb.config import MODEL_RAG
+from config import MODEL_RAG
 
 # ==========================================================
 # OPENAI

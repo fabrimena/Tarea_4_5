@@ -1,8 +1,8 @@
 import json
 from langfuse import get_client
 from langfuse.openai import openai
-from Tarea_4_5.config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER
-from Tarea_4_5.rag import ask_rag, search_documents, collection
+from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER
+from rag import ask_rag, search_documents, collection
 
 client = openai.OpenAI()
 lf = get_client()
