@@ -144,38 +144,40 @@ def run_agent(question):
 
         # ── Span 2: ejecución de herramienta ────────────────
         if message.tool_calls:
-            tool_name = message.tool_calls[0].function.name
-            args      = json.loads(message.tool_calls[0].function.arguments)
 
-            print("DEBUG - Tool name:", tool_name)
-            print("DEBUG - Arguments:", args)
+            tool_messages = []  # collect responses for ALL tool calls
 
             with lf.start_as_current_observation(
                 as_type="span",
-                name=f"tool_call:{tool_name}",
+                name="tool_calls",
             ) as tool_span:
 
-                tool_span.update(input={"tool": tool_name, "args": args})
+                for tool_call in message.tool_calls:  # ← loop, not just [0]
+                    tool_name = tool_call.function.name
+                    args      = json.loads(tool_call.function.arguments)
 
-                if tool_name == "consultar_apuntes":
-                    # ask_rag tiene spans internos que se anidarán aquí automáticamente.
-                    rag_result   = ask_rag(args["pregunta"])
-                    tool_content = rag_result["answer"]
+                    if tool_name == "consultar_apuntes":
+                        rag_result   = ask_rag(args["pregunta"])
+                        tool_content = rag_result["answer"]
+                    elif tool_name == "resumir_semana":
+                        rag_result   = summarize_week(args["semana"])
+                        tool_content = rag_result["answer"]
+                    else:
+                        tool_content = "Herramienta no reconocida"
+                        rag_result   = {
+                            "answer": tool_content,
+                            "retrieved_documents": [],
+                            "metadatas": [],
+                            "scores": [],
+                        }
 
-                elif tool_name == "resumir_semana":
-                    rag_result   = summarize_week(args["semana"])
-                    tool_content = rag_result["answer"]
+                    tool_messages.append({        # ← one reply per tool call
+                        "role":         "tool",
+                        "tool_call_id": tool_call.id,
+                        "content":      tool_content,
+                    })
 
-                else:
-                    tool_content = "Herramienta no reconocida"
-                    rag_result   = {
-                        "answer": tool_content,
-                        "retrieved_documents": [],
-                        "metadatas": [],
-                        "scores": [],
-                    }
-
-                tool_span.update(output={"tool_content_preview": tool_content[:300]})
+                tool_span.update(output={"num_tool_calls": len(tool_messages)})
 
             # ── Span 3: respuesta final del orquestador ─────
             with lf.start_as_current_observation(
@@ -186,18 +188,14 @@ def run_agent(question):
                     model=MODEL_ORCHESTRATOR,
                     temperature=0,
                     messages=[
-                        {"role": "system",  "content": SYSTEM_PROMPT},
-                        {"role": "user",    "content": question},
+                        {"role": "system",    "content": SYSTEM_PROMPT},
+                        {"role": "user",      "content": question},
                         {
-                            "role": "assistant",
-                            "content": None,
-                            "tool_calls": message.tool_calls,
+                            "role":       "assistant",
+                            "content":    None,
+                            "tool_calls": message.tool_calls,  # all tool calls
                         },
-                        {
-                            "role": "tool",
-                            "tool_call_id": message.tool_calls[0].id,
-                            "content": tool_content,
-                        },
+                        *tool_messages,   # ← unpack ALL tool responses
                     ],
                 )
 
