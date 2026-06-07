@@ -21,7 +21,7 @@ st.title("🤖 Asistente Académico IA")
 
 st.markdown(
     """
-Consulta los apuntes del curso usando RAG + OpenAI + ChromaDB.
+Consulta apuntes del curso (RAG) o transacciones ficticias (MCP + PostgreSQL).
 """
 )
 

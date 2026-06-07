@@ -1,8 +1,9 @@
 import json
 from langfuse import get_client
 from langfuse.openai import openai
-from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER
+from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER, MODEL_TRANSACTIONAL
 from rag import ask_rag, search_documents, collection
+from mcp_client import call_mcp_tool
 
 client = openai.OpenAI()
 lf = get_client()
@@ -10,11 +11,15 @@ lf = get_client()
 SYSTEM_PROMPT = """
 Eres un agente académico del curso de Inteligencia Artificial.
 
-Dispones de una herramienta llamada RAG.
+Herramientas disponibles:
+- consultar_apuntes: preguntas sobre contenido del curso (RAG).
+- resumir_semana: resumen de una semana específica.
+- consultar_transacciones: datos transaccionales ficticios vía MCP (fraude, clientes, transacciones).
 
-Utilízala cuando el usuario pregunte sobre contenido de los apuntes.
+Usa consultar_transacciones solo para preguntas sobre transacciones, fraude o clientes ficticios.
+Usa consultar_apuntes para temas académicos del curso.
 
-Responde siempre en español.
+Responde siempre en español y explica qué datos usaste.
 """
 
 # ==========================================================
@@ -74,6 +79,59 @@ Contexto:
     }
 
 # ==========================================================
+# TRANSACTIONAL AGENT  →  consulta vía MCP (sin acceso directo a BD)
+# ==========================================================
+def run_transactional_agent(args: dict) -> dict:
+    accion = args["accion"]
+    justificacion = args["justificacion"]
+
+    mcp_args = {"justification": justificacion}
+    optional_fields = [
+        "transaction_id", "customer_id", "days", "reason", "severity",
+        "status", "is_flagged", "min_amount", "max_amount", "start_date", "end_date",
+    ]
+    for field in optional_fields:
+        if field in args and args[field] is not None:
+            mcp_args[field] = args[field]
+
+    with lf.start_as_current_observation(as_type="span", name="transactional_agent") as span:
+        span.update(input={"accion": accion, "justificacion": justificacion})
+
+        with lf.start_as_current_observation(as_type="span", name=f"mcp_call:{accion}") as mcp_span:
+            mcp_span.update(input=mcp_args)
+            try:
+                mcp_result = call_mcp_tool(accion, mcp_args)
+            except Exception as exc:
+                mcp_result = {"error": str(exc)}
+            mcp_span.update(output=mcp_result)
+
+        prompt = f"""
+Eres el Agente Transaccional. Interpreta el resultado del MCP y responde al usuario.
+Indica qué datos consultaste y si hubo restricciones de seguridad.
+
+Pregunta original:
+{args.get('pregunta_original', '')}
+
+Resultado MCP ({accion}):
+{json.dumps(mcp_result, ensure_ascii=False, indent=2)}
+"""
+        response = client.chat.completions.create(
+            model=MODEL_TRANSACTIONAL,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = response.choices[0].message.content
+        span.update(output={"answer": answer[:300]})
+
+    return {
+        "answer": answer,
+        "mcp_result": mcp_result,
+        "retrieved_documents": [],
+        "metadatas": [{"source": "mcp", "tool": accion, "data_used": mcp_result.get("data_used", [])}],
+        "scores": [],
+    }
+
+# ==========================================================
 # RUN AGENT  →  todo el flujo dentro de UN solo trace.
 # El anidamiento es automático por contexto (with statements).
 # ==========================================================
@@ -128,6 +186,50 @@ def run_agent(question):
                             },
                         },
                     },
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "consultar_transacciones",
+                            "description": "Consulta transacciones ficticias, fraude o riesgo de clientes vía MCP Server",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "accion": {
+                                        "type": "string",
+                                        "enum": [
+                                            "get_transaction_by_id",
+                                            "search_transactions",
+                                            "get_customer_risk_summary",
+                                            "get_recent_flagged_transactions",
+                                            "create_fraud_case",
+                                        ],
+                                    },
+                                    "justificacion": {
+                                        "type": "string",
+                                        "description": "Por qué se necesita esta consulta (mínimo 10 caracteres)",
+                                    },
+                                    "transaction_id": {"type": "integer"},
+                                    "customer_id": {"type": "integer"},
+                                    "days": {"type": "integer"},
+                                    "reason": {"type": "string"},
+                                    "severity": {
+                                        "type": "string",
+                                        "enum": ["low", "medium", "high", "critical"],
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": ["approved", "failed", "pending"],
+                                    },
+                                    "is_flagged": {"type": "boolean"},
+                                    "min_amount": {"type": "number"},
+                                    "max_amount": {"type": "number"},
+                                    "start_date": {"type": "string"},
+                                    "end_date": {"type": "string"},
+                                },
+                                "required": ["accion", "justificacion"],
+                            },
+                        },
+                    },
                 ],
             )
 
@@ -164,6 +266,11 @@ def run_agent(question):
 
                 elif tool_name == "resumir_semana":
                     rag_result   = summarize_week(args["semana"])
+                    tool_content = rag_result["answer"]
+
+                elif tool_name == "consultar_transacciones":
+                    args["pregunta_original"] = question
+                    rag_result   = run_transactional_agent(args)
                     tool_content = rag_result["answer"]
 
                 else:
