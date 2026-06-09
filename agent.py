@@ -1,8 +1,11 @@
 import json
+
 from langfuse import get_client
 from langfuse.openai import openai
+
 from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER
 from rag import ask_rag, search_documents, collection
+from websearch import ask_web_search
 
 client = openai.OpenAI()
 lf = get_client()
@@ -10,9 +13,24 @@ lf = get_client()
 SYSTEM_PROMPT = """
 Eres un agente académico del curso de Inteligencia Artificial.
 
-Dispones de una herramienta llamada RAG.
+Dispones de tres herramientas:
 
-Utilízala cuando el usuario pregunte sobre contenido de los apuntes.
+1. consultar_apuntes   → úsala cuando el usuario pregunte sobre contenido
+                         cubierto en los apuntes del curso.
+
+2. resumir_semana      → úsala cuando el usuario pida un resumen de una
+                         semana específica del curso.
+
+3. buscar_en_web       → úsala cuando:
+                         a) el usuario lo solicite de forma explícita
+                            (ej. "busca en internet", "qué dice la web sobre..."), o
+                         b) la información no esté en los apuntes del curso.
+                         En caso de duda, intenta primero consultar_apuntes y si
+                         la respuesta es insuficiente, usa buscar_en_web
+                         automáticamente SIN pedir permiso al usuario.
+
+REGLA IMPORTANTE: Nunca le preguntes al usuario si desea que busques en la web.
+Si determinas que la búsqueda web es necesaria, ejecútala directamente y explica tu razonamiento.
 
 Responde siempre en español.
 """
@@ -128,6 +146,27 @@ def run_agent(question):
                             },
                         },
                     },
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "buscar_en_web",
+                            "description": (
+                                "Realiza una búsqueda en internet. "
+                                "Úsala solo cuando el usuario lo solicite explícitamente o cuando "
+                                "la información no pueda encontrarse en los apuntes del curso."
+                            ),
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "consulta": {
+                                        "type":        "string",
+                                        "description": "La consulta de búsqueda web a realizar"
+                                    }
+                                },
+                                "required": ["consulta"],
+                            },
+                        },
+                    },
                 ],
             )
 
@@ -145,33 +184,48 @@ def run_agent(question):
         # ── Span 2: ejecución de herramienta ────────────────
         if message.tool_calls:
 
-            tool_messages = []  # collect responses for ALL tool calls
+            tool_messages = []
+            last_tool_result = {
+                "answer":              "",
+                "retrieved_documents": [],
+                "metadatas":           [],
+            }
 
-            with lf.start_as_current_observation(
-                as_type="span",
-                name="tool_calls",
-            ) as tool_span:
+            with lf.start_as_current_observation(as_type="span", name="tool_calls") as tool_span:
 
-                for tool_call in message.tool_calls:  # ← loop, not just [0]
+                for tool_call in message.tool_calls:
                     tool_name = tool_call.function.name
                     args      = json.loads(tool_call.function.arguments)
 
                     if tool_name == "consultar_apuntes":
-                        rag_result   = ask_rag(args["pregunta"])
-                        tool_content = rag_result["answer"]
+                        tool_result  = ask_rag(args["pregunta"])
+                        tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
+
+                        # ── Fallback: si RAG no encontró nada, forzar búsqueda web ──
+                        if "No encontré información suficiente" in tool_content:
+                            with lf.start_as_current_observation(as_type="span", name="websearch_fallback"):
+                                fallback_result  = ask_web_search(args["pregunta"])
+                                tool_content     = fallback_result["answer"]
+                                last_tool_result = fallback_result
+
                     elif tool_name == "resumir_semana":
-                        rag_result   = summarize_week(args["semana"])
-                        tool_content = rag_result["answer"]
+                        tool_result  = summarize_week(args["semana"])
+                        tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
+
+                    elif tool_name == "buscar_en_web":
+                        tool_result  = ask_web_search(args["consulta"])
+                        tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
+
                     else:
                         tool_content = "Herramienta no reconocida"
-                        rag_result   = {
-                            "answer": tool_content,
-                            "retrieved_documents": [],
-                            "metadatas": [],
-                            "scores": [],
+                        tool_result  = {
+                            "answer": tool_content, "retrieved_documents": [], "metadatas": [], "scores": [],
                         }
 
-                    tool_messages.append({        # ← one reply per tool call
+                    tool_messages.append({
                         "role":         "tool",
                         "tool_call_id": tool_call.id,
                         "content":      tool_content,
@@ -205,13 +259,15 @@ def run_agent(question):
 
             return {
                 "answer":              answer,
-                "sources":             rag_result["metadatas"],
-                "retrieved_documents": rag_result["retrieved_documents"],
-                "metadatas":           rag_result["metadatas"],
+                "sources":             last_tool_result.get("metadatas", []),
+                "retrieved_documents": last_tool_result.get("retrieved_documents", []),
+                "metadatas":           last_tool_result.get("metadatas", []),
             }
 
         # ── Sin tool call: respuesta directa ────────────────
-        agent_span.update(output={"answer": message.content[:300] if message.content else ""})
+        agent_span.update(
+            output={"answer": message.content[:300] if message.content else ""}
+            )
         lf.flush()
 
         return {
