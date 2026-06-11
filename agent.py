@@ -1,9 +1,12 @@
 import json
+
 from langfuse import get_client
 from langfuse.openai import openai
 from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER, MODEL_TRANSACTIONAL
 from rag import ask_rag, search_documents, collection
 from mcp_client import call_mcp_tool
+from websearch import ask_web_search
+
 
 client = openai.OpenAI()
 lf = get_client()
@@ -11,12 +14,26 @@ lf = get_client()
 SYSTEM_PROMPT = """
 Eres un agente académico del curso de Inteligencia Artificial.
 
-Herramientas disponibles:
-- consultar_apuntes: preguntas sobre contenido del curso (RAG).
-- resumir_semana: resumen de una semana específica.
-- consultar_transacciones: datos transaccionales ficticios vía MCP (fraude, clientes, transacciones).
+Dispones de tres herramientas:
 
-Usa consultar_transacciones solo para preguntas sobre transacciones, fraude o clientes ficticios.
+1. consultar_apuntes        → úsala cuando el usuario pregunte sobre contenido
+                            cubierto en los apuntes del curso.
+
+2. resumir_semana           → úsala cuando el usuario pida un resumen de una
+                            semana específica del curso.
+
+3. consultar_transacciones  → úsala solo para preguntas sobre transacciones, fraude o clientes ficticios.
+
+4. buscar_en_web            → úsala cuando:
+                            a) el usuario lo solicite de forma explícita
+                                (ej. "busca en internet", "qué dice la web sobre..."), o
+                            b) la información no esté en los apuntes del curso.
+                            En caso de duda, intenta primero consultar_apuntes y si
+                            la respuesta es insuficiente, usa buscar_en_web
+                            automáticamente SIN pedir permiso al usuario.
+
+REGLA IMPORTANTE: Nunca le preguntes al usuario si desea que busques en la web.
+Si determinas que la búsqueda web es necesaria, ejecútala directamente y explica tu razonamiento.
 Usa consultar_apuntes para temas académicos del curso.
 
 Responde siempre en español y explica qué datos usaste.
@@ -227,9 +244,30 @@ def run_agent(question):
                                     "end_date": {"type": "string"},
                                 },
                                 "required": ["accion", "justificacion"],
-                            },
+                            }                            
                         },
                     },
+                    {
+                        "type": "function",
+                        "function": {
+                          "name": "buscar_en_web",
+                            "description": (
+                                "Realiza una búsqueda en internet. "
+                                "Úsala solo cuando el usuario lo solicite explícitamente o cuando "
+                                "la información no pueda encontrarse en los apuntes del curso."
+                            ),
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "consulta": {
+                                        "type":        "string",
+                                        "description": "La consulta de búsqueda web a realizar"
+                                    }
+                                },
+                                "required": ["consulta"],
+                            },
+                        }
+                    }
                 ],
             )
 
@@ -246,43 +284,60 @@ def run_agent(question):
 
         # ── Span 2: ejecución de herramienta ────────────────
         if message.tool_calls:
-            tool_name = message.tool_calls[0].function.name
-            args      = json.loads(message.tool_calls[0].function.arguments)
 
-            print("DEBUG - Tool name:", tool_name)
-            print("DEBUG - Arguments:", args)
+            tool_messages = []
+            last_tool_result = {
+                "answer":              "",
+                "retrieved_documents": [],
+                "metadatas":           [],
+            }
 
-            with lf.start_as_current_observation(
-                as_type="span",
-                name=f"tool_call:{tool_name}",
-            ) as tool_span:
+            with lf.start_as_current_observation(as_type="span", name="tool_calls") as tool_span:
 
-                tool_span.update(input={"tool": tool_name, "args": args})
+                for tool_call in message.tool_calls:
+                    tool_name = tool_call.function.name
+                    args      = json.loads(tool_call.function.arguments)
 
-                if tool_name == "consultar_apuntes":
-                    # ask_rag tiene spans internos que se anidarán aquí automáticamente.
-                    rag_result   = ask_rag(args["pregunta"])
-                    tool_content = rag_result["answer"]
+                    if tool_name == "consultar_apuntes":
+                        tool_result  = ask_rag(args["pregunta"])
+                        tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
 
-                elif tool_name == "resumir_semana":
-                    rag_result   = summarize_week(args["semana"])
-                    tool_content = rag_result["answer"]
+                        # ── Fallback: si RAG no encontró nada, forzar búsqueda web ──
+                        if "No encontré información suficiente" in tool_content:
+                            with lf.start_as_current_observation(as_type="span", name="websearch_fallback"):
+                                fallback_result  = ask_web_search(args["pregunta"])
+                                tool_content     = fallback_result["answer"]
+                                last_tool_result = fallback_result
 
-                elif tool_name == "consultar_transacciones":
-                    args["pregunta_original"] = question
-                    rag_result   = run_transactional_agent(args)
-                    tool_content = rag_result["answer"]
+                    elif tool_name == "resumir_semana":
+                        tool_result  = summarize_week(args["semana"])
+                        tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
 
-                else:
-                    tool_content = "Herramienta no reconocida"
-                    rag_result   = {
-                        "answer": tool_content,
-                        "retrieved_documents": [],
-                        "metadatas": [],
-                        "scores": [],
-                    }
+                    elif tool_name == "consultar_transacciones":
+                        args["pregunta_original"] = question
+                        tool_result   = run_transactional_agent(args)
+                        tool_content = tool_result["answer"]
 
-                tool_span.update(output={"tool_content_preview": tool_content[:300]})
+                    elif tool_name == "buscar_en_web":
+                        tool_result  = ask_web_search(args["consulta"])
+                        tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
+
+                    else:
+                        tool_content = "Herramienta no reconocida"
+                        tool_result  = {
+                            "answer": tool_content, "retrieved_documents": [], "metadatas": [], "scores": [],
+                        }
+
+                    tool_messages.append({
+                        "role":         "tool",
+                        "tool_call_id": tool_call.id,
+                        "content":      tool_content,
+                    })
+
+                tool_span.update(output={"num_tool_calls": len(tool_messages)})
 
             # ── Span 3: respuesta final del orquestador ─────
             with lf.start_as_current_observation(
@@ -293,18 +348,14 @@ def run_agent(question):
                     model=MODEL_ORCHESTRATOR,
                     temperature=0,
                     messages=[
-                        {"role": "system",  "content": SYSTEM_PROMPT},
-                        {"role": "user",    "content": question},
+                        {"role": "system",    "content": SYSTEM_PROMPT},
+                        {"role": "user",      "content": question},
                         {
-                            "role": "assistant",
-                            "content": None,
-                            "tool_calls": message.tool_calls,
+                            "role":       "assistant",
+                            "content":    None,
+                            "tool_calls": message.tool_calls,  # all tool calls
                         },
-                        {
-                            "role": "tool",
-                            "tool_call_id": message.tool_calls[0].id,
-                            "content": tool_content,
-                        },
+                        *tool_messages,   # ← unpack ALL tool responses
                     ],
                 )
 
@@ -314,13 +365,15 @@ def run_agent(question):
 
             return {
                 "answer":              answer,
-                "sources":             rag_result["metadatas"],
-                "retrieved_documents": rag_result["retrieved_documents"],
-                "metadatas":           rag_result["metadatas"],
+                "sources":             last_tool_result.get("metadatas", []),
+                "retrieved_documents": last_tool_result.get("retrieved_documents", []),
+                "metadatas":           last_tool_result.get("metadatas", []),
             }
 
         # ── Sin tool call: respuesta directa ────────────────
-        agent_span.update(output={"answer": message.content[:300] if message.content else ""})
+        agent_span.update(
+            output={"answer": message.content[:300] if message.content else ""}
+            )
         lf.flush()
 
         return {
