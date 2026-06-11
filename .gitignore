@@ -1,2 +1,8 @@
 .env
 Keys.txt
+Informe.aux
+Informe.log
+Informe.out
+Informe.fdb_latexmk
+Informe.fls
+Informe.synctex.gz
