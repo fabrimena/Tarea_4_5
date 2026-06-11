@@ -209,7 +209,7 @@ Durante el desarrollo del prototipo se encontraron los siguientes problemas:
 
     \item \textbf{Extracción de metadatos desde el nombre de archivo}: algunos archivos no seguían la convención de nomenclatura esperada (por ejemplo, \texttt{13\_SEMANA\_AI\_2018191805\_1.pdf}), lo que hizo que la expresión regular retornara \texttt{None} para los campos de semana y fecha. Se implementó un manejo de casos por defecto, pero estos documentos se almacenan sin metadato de semana y no pueden ser filtrados por el agente resumidor.
 
-    \item \textbf{Límites de la API de Tavily}: durante pruebas intensivas, la cuenta de Tavily en capa gratuita alcanzó el límite de peticiones, interrumpiendo el flujo del agente web. Se implementó manejo de excepciones que retorna una lista vacía y el orquestador informa al usuario que no se encontraron resultados.
+    \item \textbf{Límites de la API de Tavily}: Al utilizarse una prueba gratuita para la API, se puede llegar a un límite de peticiones, interrumpiendo el flujo del agente web. Se implementó manejo de excepciones que retorna una lista vacía y el orquestador informa al usuario que no se encontraron resultados.
 
     \item \textbf{Sincronización del contexto de Langfuse}: al ejecutar el agente en múltiples hilos (por la naturaleza de Streamlit), las trazas ocasionalmente se anidaban de forma incorrecta. Se resolvió llamando a \texttt{lf.flush()} al final de cada ejecución de agente para garantizar el envío inmediato.
 
@@ -230,13 +230,14 @@ La segunda entrega incorporará los componentes restantes del sistema. La Tabla~
 \toprule
 \textbf{Componente} & \textbf{Estado objetivo} \\
 \midrule
-Agente Transaccional & Por implementar \\
-MCP Server con herramientas controladas & Por implementar \\
+Agente Transaccional & En desarrollo \\
+MCP Server con herramientas controladas & En desarrollo \\
 Base de datos relacional ficticia en Docker & Por implementar \\
 Reglas de seguridad y anonimización MCP & Por implementar \\
+Agente web search & En desarrollo \\
 Memoria temporal de sesión & Por implementar \\
 Memoria histórica persistente & Por implementar \\
-Evaluación experimental (35 preguntas) & Por implementar \\
+Evaluación experimental (35 preguntas) & En desarrollo \\
 Corrección de observaciones de la primera entrega & Por implementar \\
 \bottomrule
 \end{tabular}
@@ -246,17 +247,24 @@ En particular, para los componentes más complejos se describen a continuación 
 
 \subsection{MCP Server y base transaccional}
 
-Se construirá un servidor MCP usando FastAPI o la librería oficial de MCP para Python. La base de datos relacional se ejecutará en Docker (PostgreSQL) y será poblada con un script Python que genere clientes, cuentas, transacciones normales y transacciones sospechosas siguiendo los patrones definidos en el enunciado. Las herramientas expuestas serán: \texttt{get\_transaction\_by\_id}, \texttt{search\_transactions}, \texttt{get\_customer\_risk\_summary}, \texttt{get\_recent\_flagged\_transactions} y \texttt{create\_fraud\_case}. No se expondrá ninguna herramienta de ejecución SQL libre.
+Se construirá un servidor MCP usando FastAPI o la librería oficial de MCP para Python. La base de datos relacional se ejecutará en Docker (PostgreSQL) y será poblada con un script Python que genere clientes, cuentas, transacciones normales y transacciones sospechosas siguiendo los patrones definidos en el enunciado. Las herramientas expuestas serán: \texttt{get\_transaction\_by\_id}, \texttt{search\_transactions}, \texttt{get\_customer\_risk\_summary}, \texttt{get\_recent\_flagged\_transactions} y \texttt{create\_fraud\_case}. No se expondrá ninguna herramienta de ejecución SQL libre para la entrega final.
 
 \subsection{Memoria conversacional}
 
 La memoria temporal de sesión se implementará manteniendo el historial de mensajes en la sesión de Streamlit (\texttt{st.session\_state}). La memoria histórica persistente se almacenará en la misma base de datos PostgreSQL, en una tabla de sesiones y mensajes, permitiendo consultas como ``¿qué pregunté anteriormente sobre descenso del gradiente?''.
 
+\subsection{Agente de búsqueda web}
+
+El agente para búsquedas web se realiza utilizando una API de Tavily. El modelo orquestador, al determinar que los documentos del RAG son insuficientes para resolver la consulta, utiliza la herramienta \texttt{ask\_web\_search} para obtener resultados de internet sin consultar al usuario, indicando fuentes y metadatos correspondientes.
+
+\subsection{Evaluación experimental}
+
+Se utilizan los \texttt{datasets} de langfuse para automatizar la evaluación del modelo, cada dataset contiene el número de ítems solicitados, con cada ítem conteniendo dos parámetros (pregunta, respuesta), mostrando la consulta y la respuesta esperada del modelo, utilizando python se muestran tanto la pregunta, respuesta esperada y respuesta obtenida para comparación
 % ================================================================
 \section{Conclusiones}
 % ================================================================
 
-El prototipo de primera entrega demuestra que la arquitectura base del sistema multi-agente es funcional: el orquestador selecciona correctamente las herramientas, el pipeline RAG recupera fragmentos relevantes desde los apuntes, el agente web complementa la información cuando es necesario y Langfuse registra trazas completas de cada ejecución. Los principales desafíos identificados son la calidad variable de los PDFs fuente, la nomenclatura inconsistente de algunos archivos y los límites de la API gratuita de Tavily. Estos problemas serán abordados en la segunda entrega junto con la incorporación del MCP Server, la base de datos transaccional, la memoria persistente y la evaluación experimental completa.
+El prototipo de primera entrega demuestra que la arquitectura base del sistema multi-agente es funcional: el orquestador selecciona correctamente las herramientas, el pipeline RAG recupera fragmentos relevantes desde los apuntes, el agente web complementa la información cuando es necesario y Langfuse registra trazas completas de cada ejecución. Los principales desafíos identificados son la calidad variable de los PDFs fuente y la nomenclatura inconsistente de algunos archivos. Estos problemas serán abordados en la segunda entrega junto con la incorporación del MCP Server, la base de datos transaccional, la memoria persistente y la evaluación experimental completa.
 
 % ================================================================
 \section*{Referencias}
