@@ -1,0 +1,9 @@
+streamlit
+openai
+python-dotenv
+langfuse
+chromadb
+pypdf
+langchain-text-splitters
+mcp
+psycopg2-binary

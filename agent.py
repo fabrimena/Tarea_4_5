@@ -2,10 +2,11 @@ import json
 
 from langfuse import get_client
 from langfuse.openai import openai
-
-from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER
+from config import MODEL_ORCHESTRATOR, MODEL_SUMMARIZER, MODEL_TRANSACTIONAL
 from rag import ask_rag, search_documents, collection
+from mcp_client import call_mcp_tool
 from websearch import ask_web_search
+
 
 client = openai.OpenAI()
 lf = get_client()
@@ -15,24 +16,27 @@ Eres un agente académico del curso de Inteligencia Artificial.
 
 Dispones de tres herramientas:
 
-1. consultar_apuntes   → úsala cuando el usuario pregunte sobre contenido
-                         cubierto en los apuntes del curso.
+1. consultar_apuntes        → úsala cuando el usuario pregunte sobre contenido
+                            cubierto en los apuntes del curso.
 
-2. resumir_semana      → úsala cuando el usuario pida un resumen de una
-                         semana específica del curso.
+2. resumir_semana           → úsala cuando el usuario pida un resumen de una
+                            semana específica del curso.
 
-3. buscar_en_web       → úsala cuando:
-                         a) el usuario lo solicite de forma explícita
-                            (ej. "busca en internet", "qué dice la web sobre..."), o
-                         b) la información no esté en los apuntes del curso.
-                         En caso de duda, intenta primero consultar_apuntes y si
-                         la respuesta es insuficiente, usa buscar_en_web
-                         automáticamente SIN pedir permiso al usuario.
+3. consultar_transacciones  → úsala solo para preguntas sobre transacciones, fraude o clientes ficticios.
+
+4. buscar_en_web            → úsala cuando:
+                            a) el usuario lo solicite de forma explícita
+                                (ej. "busca en internet", "qué dice la web sobre..."), o
+                            b) la información no esté en los apuntes del curso.
+                            En caso de duda, intenta primero consultar_apuntes y si
+                            la respuesta es insuficiente, usa buscar_en_web
+                            automáticamente SIN pedir permiso al usuario.
 
 REGLA IMPORTANTE: Nunca le preguntes al usuario si desea que busques en la web.
 Si determinas que la búsqueda web es necesaria, ejecútala directamente y explica tu razonamiento.
+Usa consultar_apuntes para temas académicos del curso.
 
-Responde siempre en español.
+Responde siempre en español y explica qué datos usaste.
 """
 
 # ==========================================================
@@ -89,6 +93,59 @@ Contexto:
         "retrieved_documents": docs,
         "metadatas":           metadatas,
         "scores":              distances,
+    }
+
+# ==========================================================
+# TRANSACTIONAL AGENT  →  consulta vía MCP (sin acceso directo a BD)
+# ==========================================================
+def run_transactional_agent(args: dict) -> dict:
+    accion = args["accion"]
+    justificacion = args["justificacion"]
+
+    mcp_args = {"justification": justificacion}
+    optional_fields = [
+        "transaction_id", "customer_id", "days", "reason", "severity",
+        "status", "is_flagged", "min_amount", "max_amount", "start_date", "end_date",
+    ]
+    for field in optional_fields:
+        if field in args and args[field] is not None:
+            mcp_args[field] = args[field]
+
+    with lf.start_as_current_observation(as_type="span", name="transactional_agent") as span:
+        span.update(input={"accion": accion, "justificacion": justificacion})
+
+        with lf.start_as_current_observation(as_type="span", name=f"mcp_call:{accion}") as mcp_span:
+            mcp_span.update(input=mcp_args)
+            try:
+                mcp_result = call_mcp_tool(accion, mcp_args)
+            except Exception as exc:
+                mcp_result = {"error": str(exc)}
+            mcp_span.update(output=mcp_result)
+
+        prompt = f"""
+Eres el Agente Transaccional. Interpreta el resultado del MCP y responde al usuario.
+Indica qué datos consultaste y si hubo restricciones de seguridad.
+
+Pregunta original:
+{args.get('pregunta_original', '')}
+
+Resultado MCP ({accion}):
+{json.dumps(mcp_result, ensure_ascii=False, indent=2)}
+"""
+        response = client.chat.completions.create(
+            model=MODEL_TRANSACTIONAL,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = response.choices[0].message.content
+        span.update(output={"answer": answer[:300]})
+
+    return {
+        "answer": answer,
+        "mcp_result": mcp_result,
+        "retrieved_documents": [],
+        "metadatas": [{"source": "mcp", "tool": accion, "data_used": mcp_result.get("data_used", [])}],
+        "scores": [],
     }
 
 # ==========================================================
@@ -149,7 +206,51 @@ def run_agent(question):
                     {
                         "type": "function",
                         "function": {
-                            "name": "buscar_en_web",
+                            "name": "consultar_transacciones",
+                            "description": "Consulta transacciones ficticias, fraude o riesgo de clientes vía MCP Server",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "accion": {
+                                        "type": "string",
+                                        "enum": [
+                                            "get_transaction_by_id",
+                                            "search_transactions",
+                                            "get_customer_risk_summary",
+                                            "get_recent_flagged_transactions",
+                                            "create_fraud_case",
+                                        ],
+                                    },
+                                    "justificacion": {
+                                        "type": "string",
+                                        "description": "Por qué se necesita esta consulta (mínimo 10 caracteres)",
+                                    },
+                                    "transaction_id": {"type": "integer"},
+                                    "customer_id": {"type": "integer"},
+                                    "days": {"type": "integer"},
+                                    "reason": {"type": "string"},
+                                    "severity": {
+                                        "type": "string",
+                                        "enum": ["low", "medium", "high", "critical"],
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": ["approved", "failed", "pending"],
+                                    },
+                                    "is_flagged": {"type": "boolean"},
+                                    "min_amount": {"type": "number"},
+                                    "max_amount": {"type": "number"},
+                                    "start_date": {"type": "string"},
+                                    "end_date": {"type": "string"},
+                                },
+                                "required": ["accion", "justificacion"],
+                            }                            
+                        },
+                    },
+                    {
+                        "type": "function",
+                        "function": {
+                          "name": "buscar_en_web",
                             "description": (
                                 "Realiza una búsqueda en internet. "
                                 "Úsala solo cuando el usuario lo solicite explícitamente o cuando "
@@ -165,8 +266,8 @@ def run_agent(question):
                                 },
                                 "required": ["consulta"],
                             },
-                        },
-                    },
+                        }
+                    }
                 ],
             )
 
@@ -213,6 +314,11 @@ def run_agent(question):
                         tool_result  = summarize_week(args["semana"])
                         tool_content = tool_result["answer"]
                         last_tool_result = tool_result
+
+                    elif tool_name == "consultar_transacciones":
+                        args["pregunta_original"] = question
+                        tool_result   = run_transactional_agent(args)
+                        tool_content = tool_result["answer"]
 
                     elif tool_name == "buscar_en_web":
                         tool_result  = ask_web_search(args["consulta"])
