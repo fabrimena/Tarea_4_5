@@ -6,3 +6,5 @@ Informe.out
 Informe.fdb_latexmk
 Informe.fls
 Informe.synctex.gz
+*.pyc
+test.py
