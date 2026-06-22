@@ -8,3 +8,4 @@ Informe.fls
 Informe.synctex.gz
 *.pyc
 test.py
+__pycache__/
