@@ -242,6 +242,31 @@ def ask_rag(question, k=8):
                 else:
                     docs, metas, scores = [], [], []
 
+            # buscar vecinos relevantes
+            if len(docs) <= 2:
+                archivos_ya = set(m.get("nombre_archivo", "") for m in metas)
+                for nombre_archivo in archivos_ya:
+                    if not nombre_archivo:
+                        continue
+                    chunk_nums = [
+                        m.get("chunk_numero", 0) for m in metas
+                        if m.get("nombre_archivo") == nombre_archivo
+                    ]
+                    if not chunk_nums:
+                        continue
+                    min_chunk = min(chunk_nums)
+                    max_chunk = max(chunk_nums)
+                    vecinos = collection.get(
+                        where={"nombre_archivo": {"$eq": nombre_archivo}},
+                        include=["documents", "metadatas"]
+                    )
+                    for vdoc, vmeta in zip(vecinos["documents"], vecinos["metadatas"]):
+                        vnum = vmeta.get("chunk_numero", 0)
+                        if min_chunk - 2 <= vnum <= max_chunk + 2 and vdoc not in docs:
+                            docs.append(vdoc)
+                            metas.append(vmeta)
+                            scores.append(MAX_DISTANCE)
+
             # Reranking — devuelve docs, metas y scores sincronizados
             docs, metas, scores = rerank_documents(question, docs, metas, scores)
 
@@ -267,6 +292,9 @@ Eres un asistente académico del curso de Inteligencia Artificial.
 Responde la pregunta usando ÚNICAMENTE la información del contexto.
 Los chunks pueden estar incompletos — combina la información de todos
 los fragmentos para construir una respuesta completa.
+
+Enfocate en el texto en español que describe conceptos, definiciones y comparaciones,
+excepto cuando sea necesario utilizar fórmulas matemáticas de los apuntes.
 
 El contexto puede incluir resúmenes de semanas con esta estructura:
   "los apuntes de la semana X fueron anotados por: [nombres]. el quiz N fue respondido en esta semana."

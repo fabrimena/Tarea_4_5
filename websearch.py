@@ -7,7 +7,7 @@ load_dotenv()
 from langfuse.openai import openai
 from langfuse import get_client
 
-from config import MODEL_WEB      # modelo ligero, mismo nivel que el RAG
+from config import MODEL_WEB      # modelo ligero
 
 # ==========================================================
 # OPENAI + LANGFUSE

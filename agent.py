@@ -32,12 +32,14 @@ Dispones de cinco herramientas:
 
 4. buscar_en_web            → SOLO úsala en estos dos casos:
                             a) El usuario lo solicita EXPLÍCITAMENTE con frases como
-                            "busca en internet", "qué dice la web", "busca en línea".
-                            b) Consultaste primero consultar_apuntes, no encontraste
-                            información suficiente, Y el usuario confirmó que desea
-                            la búsqueda web cuando se le preguntó.                    
-                            NUNCA uses buscar_en_web directamente sin haber intentado
-                            consultar_apuntes antes, aunque el tema parezca externo al curso.
+                            "busca en internet", "busca en la web", "busca en línea",
+                            "qué dice internet", "busca afuera". En este caso úsala
+                            DIRECTAMENTE sin pasar por consultar_apuntes primero.
+                            b) Ya usaste consultar_apuntes, no encontraste información
+                            suficiente, Y el usuario confirmó que desea la búsqueda
+                            web cuando se le preguntó.
+                                NUNCA uses buscar_en_web si el usuario no lo pidió
+                                explícitamente y no se ha intentado consultar_apuntes antes.
 
 5. consultar_memoria        → úsala cuando el usuario pregunte sobre:
                             - preguntas anteriores realizadas en esta u otras sesiones
@@ -367,11 +369,12 @@ def run_agent(question: str, chat_history: list[dict] = None, session_id: int = 
                         "function": {
                             "name": "buscar_en_web",
                             "description": (
-                                            "Realiza una búsqueda en internet. "
-                                            "SOLO debe usarse si: (a) el usuario lo pidió explícitamente con palabras "
-                                            "como 'busca en internet' o 'qué dice la web', O (b) ya se intentó "
-                                            "consultar_apuntes, no se encontró información, y el usuario confirmó "
-                                            "que desea la búsqueda web. NUNCA usar como primera opción."
+                                "Realiza una búsqueda en internet. "
+                                "Úsala DIRECTAMENTE si el usuario lo pide explícitamente con palabras como "
+                                "'busca en internet', 'busca en la web', 'busca en línea', 'qué dice internet'. "
+                                "También úsala si ya se intentó consultar_apuntes, no se encontró información, "
+                                "y el usuario confirmó que desea la búsqueda web. "
+                                "NUNCA usar como primera opción si el usuario no lo solicitó explícitamente."
                                         ),
                             "parameters": {
                                 "type": "object",
