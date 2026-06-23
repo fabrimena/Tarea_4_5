@@ -8,6 +8,10 @@ Also includes a manual conversation evaluation that chains
 multi-turn exchanges and scores only the final follow-up answer.
 """
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from langfuse import get_client
 from agent import run_agent
 
@@ -17,12 +21,18 @@ lf = get_client()
 # DATASET EXPERIMENTS  (factual, comparacion, etc.)
 # ==========================================================
 
+def _question_from_item(item) -> str:
+    if isinstance(item.input, dict):
+        return item.input.get("question", str(item.input))
+    return item.input
+
+
 def task(item):
     """
     Called once per dataset item by run_experiment.
     Returns a string — becomes {{output}} in the evaluator prompt.
     """
-    result = run_agent(question=item.input)
+    result = run_agent(question=_question_from_item(item))
     return result["answer"]
 
 
@@ -212,3 +222,15 @@ def evaluate_agent_conversation(run: str = "conv-run-001"):
 
     lf.flush()
     print(f"\nDone. Check Langfuse → Datasets → {CONVERSATION_DATASET} → Experiments → {run}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    run_name = sys.argv[1] if len(sys.argv) > 1 else "run-001"
+    dataset_names = (
+        tuple(sys.argv[2:])
+        if len(sys.argv) > 2
+        else ("factual", "comparacion", "fuera_alcance", "websearch", "transactional")
+    )
+    evaluate_agent(run_name, dataset_names=dataset_names)

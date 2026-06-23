@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from psycopg2.extras import RealDictCursor
 
@@ -24,6 +25,8 @@ def _anonymize_customer(row: dict) -> dict:
 
 def _format_transaction(row: dict) -> dict:
     row = dict(row)
+    if "amount" in row and isinstance(row["amount"], Decimal):
+        row["amount"] = float(row["amount"])
     if "account_number" in row:
         row["account_number_masked"] = mask_account_number(row.pop("account_number"))
     return row

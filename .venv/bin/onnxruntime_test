@@ -1,8 +1,0 @@
-#!/bin/sh
-'''exec' "/Users/anthony/Desktop/Escritorio/Escritorio/TEC/TEC-I-Semestre-2026/2026/IA/Tarea 4- 5/Tarea_4_5/.venv/bin/python3.12" "$0" "$@"
-' '''
-import sys
-from onnxruntime.tools.onnxruntime_test import main
-if __name__ == '__main__':
-    sys.argv[0] = sys.argv[0].removesuffix('.exe')
-    sys.exit(main())

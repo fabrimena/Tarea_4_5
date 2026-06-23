@@ -8,4 +8,6 @@ Informe.fls
 Informe.synctex.gz
 *.pyc
 test.py
+.venv/
+vectordb/
 __pycache__/

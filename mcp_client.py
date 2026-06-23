@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -36,4 +37,13 @@ async def _call_tool_async(tool_name: str, arguments: dict) -> dict:
 
 
 def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
-    return asyncio.run(_call_tool_async(tool_name, arguments))
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_call_tool_async(tool_name, arguments))
+
+    # Langfuse run_experiment ya tiene un event loop activo
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(
+            asyncio.run, _call_tool_async(tool_name, arguments)
+        ).result()
