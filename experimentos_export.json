@@ -375,4 +375,381 @@
       ]
     }
   ]
+{
+  "exported_at": "2026-06-23T22:20:17.638558+00:00",
+  "datasets": [
+    {
+      "dataset": "factual",
+      "run": "6",
+      "items": [
+        {
+          "question": "Menciona tecnicas para resolver el overfitting",
+          "expectedOutput": "Simplificar modelo, reducir dimensionalidad, utilizar más datos de entrenamiento",
+          "output": "Para resolver el overfitting, se pueden aplicar las siguientes técnicas:\n\n1. **Reducir la complejidad del modelo**: Simplificar el modelo para que no se ajuste demasiado a los datos de entrenamiento.\n2. **Reducir la dimensionalidad del conjunto de datos**: Eliminar características irrelevantes o redundantes para evitar que el modelo se ajuste a ruido.\n3. **Aumentar la complejidad del modelo si es muy simple**: En casos de alto sesgo, un modelo más complejo puede mejorar el ajuste.\n4. **Utilizar k-fold cross validation**: Esto proporciona una estimación más robusta del desempeño del modelo al dividir los datos en k subconjuntos y entrenar el modelo k veces.\n\nEstas estrategias ayudan a manejar el equilibrio entre sesgo y varianza, mejorando la capacidad de generalización del modelo.",
+          "scores": {
+            "dataset_evaluator": 0.9,
+            "context_relevance": 0.259,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0
+          }
+        },
+        {
+          "question": "Que es batch gradient descent?",
+          "expectedOutput": "calcula el error utilizando todo el conjunto de datos y actualiza los parametros unicamente al finalizar cada epoch",
+          "output": "El batch gradient descent es un método de optimización que calcula el error utilizando todo el conjunto de datos y actualiza los parámetros solo al finalizar cada epoch. Este enfoque es más estable porque representa mejor el gradiente global, pero tiene la desventaja de que requiere cargar todo el dataset en memoria, lo que puede ser problemático para conjuntos de datos grandes, y su convergencia es más lenta en estos casos.",
+          "scores": {
+            "groundedness": 1.0,
+            "context_relevance": 0.2517,
+            "answer_correctness": 1.0,
+            "dataset_evaluator": 1.0
+          }
+        },
+        {
+          "question": "¿Qué es una función de pérdida?",
+          "expectedOutput": "Función que mide el error entre las predicciones del modelo y los valores reales, guiando el proceso de optimización.",
+          "output": "Una función de pérdida es una medida que cuantifica qué tan bien o mal se ajusta un modelo a los datos de entrenamiento. Se utiliza para evaluar el rendimiento del modelo. Matemáticamente, se puede expresar como:\n\n\\[\n(f_{w,b}(x_i) - y_i)^2\n\\]\n\ndonde \\(f_{w,b}(x_i)\\) es la predicción del modelo para una entrada \\(x_i\\), y \\(y_i\\) es el valor real. El objetivo es minimizar esta función ajustando los parámetros del modelo, como \\(w\\) y \\(b\\). La función de pérdida permite calcular la penalidad de los errores cometidos por el modelo en sus predicciones.",
+          "scores": {
+            "dataset_evaluator": 1.0,
+            "context_relevance": 0.0932,
+            "groundedness": 1.0,
+            "answer_correctness": 1.0
+          }
+        },
+        {
+          "question": "¿Qué es el Mini-Batch Gradient Descent?",
+          "expectedOutput": "Variante del descenso de gradiente que actualiza los parámetros usando pequeños subconjuntos del dataset, combinando la estabilidad del batch con la velocidad del estocástico.",
+          "output": "El Mini-Batch Gradient Descent es un método de optimización que combina características del Batch Gradient Descent y el Stochastic Gradient Descent. En este enfoque, el modelo se optimiza después de procesar un conjunto de datos llamado \"batch\", que es una porción del conjunto total de datos. Esto ayuda a evitar caer en mínimos locales y mejora la robustez del modelo. Además, es más eficiente computacionalmente que el enfoque estocástico puro. Sin embargo, introduce un hiperparámetro adicional: el tamaño del batch.",
+          "scores": {
+            "groundedness": 1.0,
+            "context_relevance": 0.2691,
+            "answer_correctness": 1.0,
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Qué es la retropropagación?",
+          "expectedOutput": "Algoritmo que calcula el gradiente de la función de pérdida respecto a los pesos propagando el error hacia atrás en la red neuronal, permitiendo actualizar los parámetros.",
+          "output": "La retropropagación es un proceso utilizado en redes neuronales para optimizar los pesos de la red. Se lleva a cabo mediante el algoritmo de descenso del gradiente, que mide cuánto afecta cada neurona a la función de pérdida final. Esto se logra calculando la derivada de la función de costo con respecto a los pesos en cada neurona, lo que permite determinar su contribución al error general. Este mecanismo ajusta los pesos de la red para mejorar su rendimiento en tareas de predicción.",
+          "scores": {
+            "context_relevance": 0.2641,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0,
+            "dataset_evaluator": 0.9
+          }
+        },
+        {
+          "question": "¿Qué es el MSE?",
+          "expectedOutput": "Mean Squared Error: función de pérdida que calcula el promedio de los errores al cuadrado entre valores predichos y reales, penalizando más los errores grandes.",
+          "output": "El MSE, o error cuadrático medio (Mean Squared Error), es una medida utilizada para evaluar qué tan bien se ajusta un modelo a los datos. Se define como la función de pérdida que cuantifica el error de cada ejemplo, expresada matemáticamente como \\((f_{w,b}(x_i) - y_i)^2\\). Su objetivo es encontrar el promedio de los errores al cuadrado entre las predicciones del modelo y las etiquetas reales. Minimizar el MSE permite ajustar los parámetros \\(w\\) y \\(b\\) del modelo, logrando así un modelo lo más preciso posible.\n\nEn la práctica, se prefiere utilizar el MSE en lugar del MAE (error absoluto medio) porque la función MSE es estrictamente convexa y diferenciable en todo su dominio, mientras que el MAE no es derivable en el punto donde el error es cero.",
+          "scores": {
+            "dataset_evaluator": 1.0,
+            "groundedness": 1.0,
+            "context_relevance": 0.0524,
+            "answer_correctness": 1.0
+          }
+        },
+        {
+          "question": "¿Quién anotó las respuestas del quiz 2?",
+          "expectedOutput": "Roberto José Garita Mata y/o David Blanco Láscarez.",
+          "output": "Las respuestas del quiz 2 fueron anotadas por David Blanco Láscarez, Emmanuel José Matamoros Jiménez, Roberto José Garita Mata y Victor Aymerich.",
+          "scores": {
+            "dataset_evaluator": 0.7,
+            "context_relevance": 0.0971,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0
+          }
+        },
+        {
+          "question": "¿Qué es el aprendizaje supervisado?",
+          "expectedOutput": "Tipo de aprendizaje donde el modelo se entrena con pares ordenados (x, y), comparando sus predicciones con una variable objetivo conocida.",
+          "output": "El aprendizaje supervisado es un tipo de entrenamiento en machine learning donde se utiliza un conjunto de datos que consiste en pares ordenados (x, y). Aquí, \"x\" representa un vector de características, como por ejemplo, datos de una orquídea (tamaño de tallo, tamaño de pétalo y color), y \"y\" es una etiqueta que se busca predecir, como el consumo de agua o la especie de la orquídea. Durante el entrenamiento, el modelo aprende a predecir valores ˆy que sean lo más cercanos posibles a las etiquetas reales.",
+          "scores": {
+            "answer_correctness": 1.0,
+            "groundedness": 1.0,
+            "dataset_evaluator": 1.0,
+            "context_relevance": 0.266
+          }
+        },
+        {
+          "question": "¿Qué es el learning rate?",
+          "expectedOutput": "Hiperparámetro que controla el tamaño del paso en cada iteración del descenso de gradiente. Un valor pequeño produce convergencia lenta, uno grande puede causar divergencia.",
+          "output": "El learning rate, o tasa de aprendizaje, es un hiperparámetro crucial en el entrenamiento de modelos de aprendizaje automático. Determina el tamaño del paso que se da en cada iteración del descenso de gradiente al actualizar los parámetros del modelo. Si el learning rate es demasiado pequeño, los pasos serán cortos y la convergencia será lenta. Por otro lado, un learning rate demasiado grande puede hacer que se sobrepase el mínimo y que el modelo no converja adecuadamente. Un learning rate adecuado permite un descenso estable y rápido hacia el mínimo óptimo.",
+          "scores": {
+            "dataset_evaluator": 1.0,
+            "groundedness": 1.0,
+            "context_relevance": 0.0901,
+            "answer_correctness": 1.0
+          }
+        },
+        {
+          "question": "¿En cuál semana se realizó el quiz 4?",
+          "expectedOutput": "Semana 8",
+          "output": "El quiz 4 se realizó en la semana 8 del curso.",
+          "scores": {
+            "answer_correctness": 1.0,
+            "groundedness": 1.0,
+            "dataset_evaluator": 1.0,
+            "context_relevance": 0.0194
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "comparacion",
+      "run": "6",
+      "items": [
+        {
+          "question": "¿En qué se diferencian los enfoques científico e ingenieril del Machine Learning?",
+          "expectedOutput": "Científico: busca generar conocimiento y desarrollar nuevas métricas y algoritmos. Ingenieril: se enfoca en la implementación eficiente en producción usando herramientas como ONNX.",
+          "output": "Los enfoques científico e ingenieril del Machine Learning se diferencian principalmente en sus objetivos y métodos:\n\n1. **Enfoque Científico**:\n   - **Objetivo**: Generar nuevo conocimiento y desarrollar nuevos modelos.\n   - **Método**: Se centra en la investigación teórica, buscando estar al día con el estado del arte y superar las métricas actuales.\n   - **Profesionales Involucrados**: Data scientists.\n\n2. **Enfoque Ingenieril**:\n   - **Objetivo**: Implementar y poner en producción los modelos desarrollados.\n   - **Método**: Se enfoca en transformar los modelos teóricos en arquitecturas reales, considerando capacidades y limitaciones prácticas, y a menudo implica la conversión del lenguaje original.\n   - **Profesionales Involucrados**: Ingenieros de operaciones de machine learning (MLOps).\n\nEn resumen, el enfoque científico se dedica a la investigación y desarrollo de modelos, mientras que el ingenieril se centra en su implementación práctica.",
+          "scores": {
+            "dataset_evaluator": 0.9,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0,
+            "context_relevance": 0.2773
+          }
+        },
+        {
+          "question": "¿Cuál es la diferencia entre overfitting y underfitting?",
+          "expectedOutput": "Overfitting: el modelo memoriza los datos de entrenamiento y no generaliza bien a datos nuevos. Underfitting: el modelo es demasiado simple y no logra aprender el patrón de los datos.",
+          "output": "La diferencia entre overfitting y underfitting radica en cómo un modelo de aprendizaje automático se ajusta a los datos:\n\n- **Overfitting**: Ocurre cuando un modelo aprende demasiado bien los datos de entrenamiento, incluyendo el ruido y las particularidades específicas del conjunto de datos. Esto resulta en un error muy bajo en el conjunto de entrenamiento, pero el modelo generaliza mal a nuevos datos, cometiendo muchos errores en validación o prueba.\n\n- **Underfitting**: Sucede cuando el modelo es demasiado simple o está mal entrenado, por lo que no logra capturar los patrones básicos de los datos. En este caso, tanto el error de entrenamiento como el de validación son altos, lo que indica que el modelo no tiene suficiente capacidad o que no se entrenó adecuadamente (por ejemplo, debido a pocas épocas de entrenamiento o una mala tasa de aprendizaje).",
+          "scores": {
+            "dataset_evaluator": 1.0,
+            "context_relevance": 0.1641,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0
+          }
+        },
+        {
+          "question": "¿En qué se diferencia el Batch Gradient Descent del Stochastic Gradient Descent?",
+          "expectedOutput": "Batch: calcula el error con todo el dataset y actualiza parámetros al final de cada epoch, más estable pero lento. SGD: actualiza parámetros por cada muestra individual, más rápido pero inestable.",
+          "output": "El **Batch Gradient Descent** y el **Stochastic Gradient Descent** son dos métodos de optimización que se diferencian principalmente en cómo actualizan el modelo durante el entrenamiento:\n\n1. **Batch Gradient Descent**:\n   - Calcula el error utilizando todo el conjunto de datos antes de ajustar el modelo. Esto significa que realiza una actualización del modelo por cada epoch.\n   - Es más estable debido a que utiliza toda la información disponible, pero requiere que todo el dataset esté en memoria, lo cual puede ser un problema para datasets grandes.\n   - La convergencia es más lenta porque espera a procesar todo el dataset antes de realizar una actualización.\n\n2. **Stochastic Gradient Descent**:\n   - Calcula y ajusta el modelo para cada muestra individual del dataset. Esto significa que realiza una actualización del modelo por cada muestra.\n   - Ofrece una convergencia más rápida y no necesita que todo el dataset esté en memoria, lo que lo hace más adecuado para datasets grandes.\n   - Sin embargo, el gradiente es más inestable, lo que puede llevar a cambios bruscos en el modelo y puede ser ineficiente debido a la cantidad de operaciones realizadas por muestra.\n\nEstas diferencias hacen que cada método sea más adecuado para diferentes tipos de problemas y tamaños de datasets.",
+          "scores": {
+            "dataset_evaluator": 1.0,
+            "context_relevance": 0.2763,
+            "groundedness": 1.0,
+            "answer_correctness": 1.0
+          }
+        },
+        {
+          "question": "¿Cuál es la diferencia entre aprendizaje supervisado y no supervisado?",
+          "expectedOutput": "Supervisado: el modelo se entrena con pares (x, y) con una variable objetivo conocida. No supervisado: busca patrones ocultos en los datos sin etiquetas definidas.",
+          "output": "La diferencia principal entre el aprendizaje supervisado y el no supervisado es la disponibilidad de etiquetas en los datos:\n\n- **Aprendizaje Supervisado**: Se trabaja con datos de entrada que tienen etiquetas asociadas. Esto permite al modelo aprender a predecir o clasificar basándose en estas etiquetas. Es como tener un maestro que guía el aprendizaje del modelo con ejemplos correctos.\n\n- **Aprendizaje No Supervisado**: Solo se dispone del vector de características sin valores de objetivo o etiquetas. El objetivo aquí es encontrar patrones o estructuras en los datos. Los algoritmos utilizados en este caso son conocidos como \"algoritmos de clustering\", que agrupan los datos en función de similitudes.\n\nEsta información fue extraída de los apuntes del curso.",
+          "scores": {
+            "answer_correctness": 1.0,
+            "context_relevance": 0.2943,
+            "groundedness": 1.0,
+            "dataset_evaluator": 1.0
+          }
+        },
+        {
+          "question": "Cual es la diferencia entre verosimilitud y MSE?",
+          "expectedOutput": "Verosimilitud: Se refiere a la probabilidad de observar los datos disponibles dados los parámetros de un modelo. MSE: Es una función de pérdida que mide qué tan bien se ajusta un modelo cuantificando el error de cada ejemplo.",
+          "output": "La diferencia entre verosimilitud y MSE (error cuadrático medio) se centra en su enfoque y aplicación en modelos estadísticos:\n\n- **Verosimilitud**: Es la probabilidad condicional de observar un conjunto de datos dado los parámetros de un modelo. Se busca maximizar esta probabilidad para que los datos observados se ajusten mejor al modelo. En este caso, se optimizan los parámetros para obtener la máxima verosimilitud.\n\n- **MSE (Error Cuadrático Medio)**: Se utiliza principalmente en regresión lineal y se enfoca en minimizar la diferencia cuadrática entre los valores predichos y los valores reales. Aquí, el objetivo es minimizar el error en lugar de maximizar una probabilidad.\n\nEn resumen, mientras que en regresión lineal se minimiza el MSE, en otros contextos se prefiere maximizar la verosimilitud para ajustar los modelos a los datos.",
+          "scores": {
+            "dataset_evaluator": 1.0,
+            "answer_correctness": 1.0,
+            "context_relevance": 0.2657,
+            "groundedness": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "fuera_alcance",
+      "run": "6",
+      "items": [
+        {
+          "question": "¿Cómo funciona un motor CVT?",
+          "expectedOutput": "No encontré información en los apuntes, quieres que realice una búsqueda?",
+          "output": "No encontré información sobre motores CVT en los apuntes del curso. ¿Te gustaría que realice una búsqueda en internet para obtener más detalles?",
+          "scores": {
+            "context_relevance": -0.2804,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0,
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Qué diferencia hay entre una guitarra acústica y una eléctrica?",
+          "expectedOutput": "No encontré información en los apuntes, quieres que realice una búsqueda?",
+          "output": "No encontré información sobre la diferencia entre una guitarra acústica y una eléctrica en los apuntes del curso. ¿Te gustaría que realice una búsqueda en internet para obtener más detalles?",
+          "scores": {
+            "context_relevance": -0.3797,
+            "groundedness": 1.0,
+            "answer_correctness": 1.0,
+            "dataset_evaluator": 0.5
+          }
+        },
+        {
+          "question": "¿Cuál es la capital de Australia?",
+          "expectedOutput": "No encontré información en los apuntes, quieres que realice una búsqueda?",
+          "output": "La capital de Australia es Canberra.",
+          "scores": {
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Cuanto equivale $157 en colones costarricenses con el tipo de cambio actual?",
+          "expectedOutput": "No encontré información en los apuntes, quieres que realice una búsqueda?",
+          "output": "No encontré información sobre el tipo de cambio actual de dólares a colones costarricenses en los apuntes del curso. ¿Te gustaría que realice una búsqueda en internet para obtener esta información?",
+          "scores": {
+            "context_relevance": -0.3729,
+            "groundedness": 1.0,
+            "answer_correctness": 1.0,
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Cuál es la receta del gallo pinto costarricense?",
+          "expectedOutput": "No encontré información en los apuntes, quieres que realice una búsqueda?",
+          "output": "No encontré información sobre la receta del gallo pinto costarricense en los apuntes del curso. ¿Te gustaría que realice una búsqueda en internet para obtener más detalles?",
+          "scores": {
+            "dataset_evaluator": 0.7,
+            "answer_correctness": 1.0,
+            "groundedness": 1.0,
+            "context_relevance": -0.422
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "websearch",
+      "run": "6",
+      "items": [
+        {
+          "question": "¿Qué dice internet sobre las novedades de Google I/O 2025 en inteligencia artificial?",
+          "expectedOutput": "Según resultados de búsqueda web, Google I/O 2025 presentó avances significativos en IA generativa, incluyendo nuevas versiones de Gemini, herramientas de agentes autónomos y la integración de IA en búsquedas con AI Overviews. La información detallada proviene de fuentes externas como el blog oficial de Google.",
+          "output": "En el Google I/O 2025, se presentaron varias novedades importantes en el ámbito de la inteligencia artificial. Uno de los anuncios más destacados fue el lanzamiento de Gemini, un modelo de inteligencia artificial que Google describe como el más inteligente que han desarrollado hasta ahora. Este modelo está diseñado para mejorar la interacción de los usuarios con la tecnología, permitiendo un control más intuitivo de dispositivos a través de comandos de voz y mejorando la experiencia general del usuario.\n\nTambién se presentó AlphaEvolve, un avance significativo en inteligencia artificial que promete revolucionar el campo. Estas innovaciones reflejan el compromiso de Google con la excelencia en el desarrollo de software y el ciclo de vida de los productos, utilizando la inteligencia artificial como motor principal.\n\nEl evento también destacó la integración de estas tecnologías en aplicaciones prácticas, como el control de dispositivos del hogar a través de la app de Gemini, lo que sugiere un enfoque en la accesibilidad y la usabilidad de la inteligencia artificial en la vida cotidiana.\n\nPara más detalles, puedes consultar las siguientes fuentes:\n- [Google I/O 2025: de la investigación a la realidad](https://blog.google/intl/es-es/noticias-compania/google-io-2025-de-la-investigacion-a-la-realidad)\n- [Últimas noticias del Google I/O 2025 - Plain Concepts](https://www.plainconcepts.com/es/google-io-2025-resumen)",
+          "scores": {
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "Busca en internet cuál es el precio actual de la API de GPT-4o de OpenAI.",
+          "expectedOutput": "Según resultados de búsqueda web, el precio de la API de GPT-4o varía según el volumen de tokens de entrada y salida. Los precios exactos y actualizados se encuentran en la página oficial de precios de OpenAI en platform.openai.com/pricing, ya que estos pueden cambiar con el tiempo.",
+          "output": "El precio actual del API de GPT-4 de OpenAI es de $75 por 1 millón de tokens de entrada y $150 por 1 millón de tokens de salida para la versión GPT-4.5. Para versiones anteriores como GPT-4.1, el costo es de $0.40 por 1 millón de tokens de entrada y $1.60 por 1 millón de tokens de salida. Estos precios pueden variar según la versión del modelo y el tipo de uso. \n\nFuentes:\n- [Fuente 3](https://www.reddit.com/r/OpenAI/comments/1izpgct/gpt45_has_an_api_price_of_751m_input_and_1501m)\n- [Fuente 1](https://pecollective.com/tools/openai-api-pricing)",
+          "scores": {
+            "dataset_evaluator": 0.9
+          }
+        },
+        {
+          "question": "Busca en internet cuál es la última versión estable de LangChain disponible hoy.",
+          "expectedOutput": "Según los resultados de búsqueda web, la última versión estable de LangChain puede consultarse en su repositorio oficial en GitHub o en PyPI. La respuesta exacta depende de la fecha de consulta, ya que LangChain se actualiza frecuentemente.",
+          "output": "La última versión estable de LangChain, disponible hasta octubre de 2023, es la versión 1.0. Esta versión ofrece una base más simplificada y extensible para construir aplicaciones con modelos de lenguaje. Puedes encontrar más detalles en las siguientes fuentes:\n\n- [LangChain 1.0 ahora disponible](https://changelog.langchain.com/announcements/langchain-1-0-now-generally-available)\n- [LangChain v1 es ahora generalmente disponible](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/langchain-v1-is-now-generally-available/4462159)",
+          "scores": {
+            "dataset_evaluator": 0.8
+          }
+        },
+        {
+          "question": "Busca en internet qué es LangGraph y para qué se usa.",
+          "expectedOutput": "Según resultados de búsqueda web, LangGraph es una biblioteca de LangChain que permite construir agentes y flujos de trabajo con estado como grafos dirigidos. Se usa para orquestar agentes con múltiples pasos, ciclos y memoria persistente, siendo especialmente útil para sistemas multi-agente complejos.",
+          "output": "LangGraph es un marco de trabajo dentro del ecosistema LangChain, diseñado para facilitar la creación y orquestación de agentes de inteligencia artificial (IA) que utilizan modelos de lenguaje de gran tamaño (LLM). Su principal objetivo es gestionar el flujo de control en aplicaciones que integran estos modelos, permitiendo definir, coordinar y ejecutar múltiples agentes de manera estructurada y eficiente.\n\nEntre sus funcionalidades, LangGraph permite manejar el estado de varios agentes, coordinar sus interacciones y gestionar errores de forma efectiva. Esto lo convierte en una herramienta valiosa para desarrolladores que buscan implementar soluciones complejas basadas en IA, donde la interacción entre diferentes agentes es crucial.\n\nEn resumen, LangGraph se utiliza para crear y gestionar aplicaciones de IA que requieren la colaboración de múltiples agentes, optimizando su funcionamiento y facilitando su implementación.\n\nFuentes:\n- [DataCamp](https://www.datacamp.com/es/tutorial/langgraph-tutorial)\n- [Alura Latam](https://www.aluracursos.com/blog/langgraph-que-es-como-usarlo-y-sus-funcionalidades)\n- [Hugging Face](https://huggingface.co/learn/agents-course/es/unit2/langgraph/when_to_use_langgraph)",
+          "scores": {
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Qué dice la web sobre los modelos de OpenAI lanzados en 2025?",
+          "expectedOutput": "Según resultados de búsqueda web, en 2025 OpenAI lanzó varios modelos incluyendo GPT-4o y variantes de la serie o1/o3 con capacidades de razonamiento extendido. La información detallada sobre fechas y capacidades específicas proviene de fuentes externas como el blog oficial de OpenAI.",
+          "output": "No tengo acceso a información sobre eventos futuros, incluyendo modelos de OpenAI que puedan ser lanzados en 2025. Mi entrenamiento solo incluye datos hasta octubre de 2023. Si deseas información sobre modelos actuales de OpenAI, puedo ayudarte con eso.",
+          "scores": {
+            "dataset_evaluator": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "transactional",
+      "run": "6",
+      "items": [
+        {
+          "question": "¿Cuál es la transacción de mayor monto y de qué cliente es?",
+          "expectedOutput": "La transacción de mayor monto es de 48,500 USD (transacción ID 4), del cliente Ana Lucía Pérez (Panamá, riesgo alto). Está marcada como sospechosa.",
+          "output": "La transacción de mayor monto en los últimos 30 días fue de **48,500.0 USD**, realizada por **Ana Lucía Pérez**. Esta transacción fue aprobada y se realizó en **Panamá** el **21 de junio de 2026**. Si necesitas más detalles, házmelo saber.",
+          "scores": {
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Cuántas transacciones sospechosas tiene Carlos Méndez Vega?",
+          "expectedOutput": "Carlos Méndez Vega (cliente ID 2, riesgo medio) tiene 5 transacciones marcadas como sospechosas en un periodo corto, con montos entre 45 y 61 USD.",
+          "output": "Carlos Méndez Vega tiene un total de **5 transacciones sospechosas**. Todas estas transacciones están marcadas como \"flagged\" y fueron aprobadas. Aquí tienes algunos detalles sobre estas transacciones:\n\n- **Transacción 1**: Monto de 55.0 USD, realizada el 23 de junio de 2026.\n- **Transacción 2**: Monto de 61.0 USD, realizada el 23 de junio de 2026.\n- **Transacción 3**: Monto de 48.0 USD, realizada el 23 de junio de 2026.\n- **Transacción 4**: Monto de 52.0 USD, realizada el 23 de junio de 2026.\n- **Transacción 5**: Monto de 45.0 USD, realizada el 23 de junio de 2026.\n\nSi necesitas más detalles sobre alguna transacción en particular, házmelo saber.",
+          "scores": {
+            "dataset_evaluator": 0.9
+          }
+        },
+        {
+          "question": "¿Laura Jiménez realizó transacciones en países distintos el mismo día?",
+          "expectedOutput": "Sí. Laura Jiménez Castro (cliente ID 5) tuvo transacciones en España, Estados Unidos y Reino Unido el mismo día. Las tres están marcadas como sospechosas.",
+          "output": "Laura Jiménez realizó transacciones en países distintos el mismo día, específicamente el 21 de junio de 2026. Aquí están los detalles de las transacciones:\n\n1. **España**\n   - Monto: 300.0 EUR\n   - Hora: 22:59:47\n\n2. **Estados Unidos**\n   - Monto: 280.0 USD\n   - Hora: 21:59:47\n\n3. **Reino Unido**\n   - Monto: 260.0 GBP\n   - Hora: 20:59:47\n\nTodas las transacciones fueron aprobadas. Si necesitas más información, házmelo saber.",
+          "scores": {
+            "dataset_evaluator": 0.7
+          }
+        },
+        {
+          "question": "¿Qué transacciones fallidas tiene el cliente 3?",
+          "expectedOutput": "El cliente 3 (Ana Lucía Pérez) tiene 2 transacciones fallidas: una de 1,200 USD por 'Fondos insuficientes' y otra de 1,500 USD por 'Límite diario excedido'. Ambas están marcadas como sospechosas.",
+          "output": "El cliente 3, identificado como Ana Lucía Pérez, tiene dos transacciones fallidas. Aquí están los detalles:\n\n1. **Transacción ID:** 15\n   - **Monto:** 1200.0 USD\n   - **Fecha:** 2026-06-19T01:59:47.303615\n   - **Número de cuenta (enmascarado):** ****1156\n\n2. **Transacción ID:** 16\n   - **Monto:** 1500.0 USD\n   - **Fecha:** 2026-06-19T02:29:47.303615\n   - **Número de cuenta (enmascarado):** ****1156\n\nSi necesitas más información o detalles adicionales, házmelo saber.",
+          "scores": {
+            "dataset_evaluator": 0.9
+          }
+        },
+        {
+          "question": "Dame el resumen de riesgo de María Solano Rojas.",
+          "expectedOutput": "María Solano Rojas (cliente ID 1) tiene riesgo bajo y país Costa Rica. Tiene transacciones aprobadas normales y al menos una transacción sospechosa de 9,200 USD, inusual para un cliente de bajo riesgo.",
+          "output": "Aquí tienes el resumen de riesgo de María Solano Rojas:\n\n- **Nombre completo:** María Solano Rojas\n- **Correo electrónico:** ma***@mail.test (se ha ocultado parte del correo por razones de seguridad)\n- **País:** Costa Rica\n- **Nivel de riesgo:** Bajo\n- **Total de transacciones:** 3\n- **Transacciones marcadas:** 2\n- **Volumen aprobado:** 10,220.00\n\nEstos datos provienen de las bases de datos de clientes, cuentas y transacciones. Si necesitas más detalles, no dudes en preguntar.",
+          "scores": {
+            "dataset_evaluator": 0.7
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "conversacion",
+      "run": "6",
+      "items": [
+        {
+          "question": "¿En qué se diferencia del aprendizaje supervisado?",
+          "expectedOutput": "A diferencia del aprendizaje supervisado, que aprende de pares etiquetados (entrada, salida correcta), el aprendizaje no supervisado aprende de la misma entrada, aprendiendo a reconstruirla con una menor cantidad de datosNo requiere datos etiquetados sino que se compara la salida del modelo con su entrada.",
+          "output": "La principal diferencia entre el aprendizaje supervisado y el no supervisado radica en el uso de etiquetas en los datos:\n\n- **Aprendizaje Supervisado**: Se utiliza un conjunto de datos etiquetados, donde cada ejemplo tiene un vector de características y una etiqueta asociada. El objetivo es aprender una función que permita predecir correctamente la salida para nuevos datos.\n\n- **Aprendizaje No Supervisado**: No se dispone de etiquetas para los datos. El modelo busca identificar patrones o estructuras dentro del conjunto de datos, como en el caso del agrupamiento o clustering.\n\nAdemás, existen otros tipos de aprendizaje como el semi-supervisado, que combina datos etiquetados y no etiquetados, y el auto-supervisado, que utiliza el mismo valor de muestra como si fuera supervisado.",
+          "scores": {
+            "dataset_evaluator": 1.0
+          }
+        },
+        {
+          "question": "Si la salida es 0.85, ¿qué significa y cómo tomarías una decisión de clasificación?",
+          "expectedOutput": "Una salida de 0.85 significa que el modelo estima un 85% de probabilidad de que la muestra pertenezca a la clase positiva. Con un umbral estándar de 0.5, se clasificaría como clase positiva. El umbral puede ajustarse según el costo relativo de falsos positivos vs falsos negativos en el problema específico.",
+          "output": "Si la salida de una regresión logística es 0.85, esto significa que el modelo predice que hay un 85% de probabilidad de que la instancia de entrada pertenezca a la clase positiva (generalmente etiquetada como 1).\n\nPara tomar una decisión de clasificación basada en esta probabilidad, se sigue el siguiente proceso:\n\n1. **Comparación con el Umbral**: Compara la probabilidad de salida (0.85 en este caso) con un umbral predefinido. El umbral más comúnmente utilizado es 0.5.\n\n2. **Decisión de Clasificación**:\n   - Si la probabilidad es mayor o igual al umbral (0.5), se clasifica la instancia como perteneciente a la clase positiva (1).\n   - Si la probabilidad es menor que el umbral, se clasifica como perteneciente a la clase negativa (0).\n\nEn este caso, dado que 0.85 es mayor que 0.5, la decisión de clasificación sería que la instancia pertenece a la clase positiva (1).\n\n3. **Confianza en la Decisión**: Una probabilidad de 0.85 indica una alta confianza en que la instancia pertenece a la clase positiva, ya que está bastante por encima del umbral común de 0.5.\n\nEsta interpretación y decisión permiten utilizar la salida del modelo para hacer predicciones prácticas en problemas de clasificación binaria.",
+          "scores": {
+            "dataset_evaluator": 0.9
+          }
+        },
+        {
+          "question": "Compara su uso con una red neuronal densa clásica para clasificación de imágenes.",
+          "expectedOutput": "Las CNN son superiores a las redes densas para clasificación de imágenes porque explotan la estructura espacial mediante convoluciones y pooling, reduciendo la cantidad de parámetros y capturando patrones locales. Las redes densas tratan cada píxel de forma independiente, perdiendo información espacial y siendo computacionalmente más costosas para imágenes.",
+          "output": "Las redes neuronales convolucionales (CNN) y las redes neuronales densas clásicas (también conocidas como redes completamente conectadas) son dos tipos de arquitecturas utilizadas para la clasificación de imágenes, pero tienen diferencias significativas en su diseño y aplicación:\n\n1. **Estructura y Conectividad**:\n   - **Red Neuronal Densa Clásica**: Cada neurona en una capa está conectada a todas las neuronas de la capa anterior. Esto resulta en un gran número de parámetros, especialmente cuando se trabaja con imágenes, ya que cada píxel se trata como una entrada independiente.\n   - **Red Neuronal Convolucional (CNN)**: Utiliza capas convolucionales que aplican filtros sobre pequeñas regiones de la imagen, lo que permite compartir pesos y reducir drásticamente el número de parámetros. Esto hace que las CNN sean más eficientes y escalables para imágenes grandes.\n\n2. **Extracción de Características**:\n   - **Red Neuronal Densa Clásica**: No tiene un mecanismo inherente para la extracción de características espaciales. Depende de la red para aprender estas características a través de las conexiones densas, lo cual puede ser ineficiente.\n   - **CNN**: Diseñada específicamente para capturar patrones espaciales y jerárquicos en los datos de entrada mediante el uso de filtros convolucionales. Esto permite a las CNN aprender características locales y globales de manera más efectiva.\n\n3. **Invariancia Espacial**:\n   - **Red Neuronal Densa Clásica**: No es inherentemente invariante a traslaciones o distorsiones en la imagen, a menos que se entrene específicamente para ello.\n   - **CNN**: Las operaciones de convolución y pooling introducen invariancia a traslaciones, escalas y otras transformaciones, lo que mejora la robustez del modelo frente a variaciones en las imágenes.\n\n4. **Eficiencia Computacional**:\n   - **Red Neuronal Densa Clásica**: Requiere más memoria y poder computacional debido al gran número de conexiones y parámetros.\n   - **CNN**: Más eficiente en términos de memoria y computación debido al uso de filtros compartidos y la reducción de dimensionalidad a través de capas de pooling.\n\n5. **Rendimiento en Tareas de Visión**:\n   - **Red Neuronal Densa Clásica**: Generalmente menos efectiva para tareas de visión por computadora debido a su incapacidad para capturar eficientemente las características espaciales de las imágenes.\n   - **CNN**: Considerada el estándar de facto para tareas de visión por computadora debido a su capacidad para aprender y generalizar características visuales complejas.\n\nEn resumen, las CNN son preferidas para la clasificación de imágenes debido a su capacidad para manejar eficientemente la estructura espacial de las imágenes, lo que resulta en un mejor rendimiento y menor costo computacional en comparación con las redes neuronales densas clásicas.",
+          "scores": {
+            "dataset_evaluator": 1.0
+          }
+        },
+        {
+          "question": "De las técnicas que mencionaste, ¿cuál es la más efectiva cuando el dataset es pequeño?",
+          "expectedOutput": "Cuando el dataset es pequeño, la regularización (L1 o L2) y el dropout son las técnicas más recomendadas, ya que penalizan la complejidad del modelo sin requerir más datos. El aumento de datos también puede ser útil si el dominio lo permite, pero depende del tipo de problema.",
+          "output": "Cuando se trabaja con un dataset pequeño, una de las técnicas más efectivas para evitar el overfitting es el **k-fold cross-validation**. Esta técnica permite maximizar el uso de los datos disponibles al dividir el conjunto de datos en \"k\" partes o \"folds\". En cada iteración, uno de los folds se utiliza como conjunto de validación y los \"k-1\" restantes se utilizan para entrenar el modelo. Este proceso se repite \"k\" veces, asegurando que cada parte del dataset se utilice tanto para entrenamiento como para validación.\n\nEl k-fold cross-validation es especialmente útil en datasets pequeños porque:\n\n1. **Maximiza el uso de datos**: Todos los datos se utilizan para entrenamiento y validación en diferentes iteraciones.\n2. **Proporciona una evaluación más robusta**: Al evaluar el modelo en diferentes particiones del dataset, se obtiene una mejor estimación de su capacidad para generalizar a datos nuevos.\n3. **Reduce la varianza en la evaluación**: Al promediar los resultados de las \"k\" iteraciones, se obtiene una medida más estable del rendimiento del modelo.\n\nEsta técnica es preferida en situaciones con datos limitados porque ayuda a mitigar el riesgo de overfitting al proporcionar una evaluación más completa y confiable del modelo.",
+          "scores": {
+            "dataset_evaluator": 0.5
+          }
+        },
+        {
+          "question": "¿Cuál de los dos recomendarías para un dataset grande y por qué?",
+          "expectedOutput": "Para datasets grandes se recomienda el descenso de gradiente estocástico (SGD) o mini-batch, ya que actualiza los parámetros con cada muestra o subconjunto, lo que es computacionalmente más eficiente y permite convergencia más rápida que el batch que requiere procesar todo el dataset en cada iteración.",
+          "output": "Para un dataset grande, recomendaría utilizar el **Stochastic Gradient Descent (SGD)** o su variante, el **Mini-batch Gradient Descent**. Aquí están las razones:\n\n1. **Eficiencia Computacional**: SGD y Mini-batch Gradient Descent no requieren cargar todo el dataset en memoria, lo que los hace más adecuados para datasets grandes. Pueden procesar datos en pequeños lotes, lo que reduce la carga de memoria.\n\n2. **Convergencia Rápida**: Al actualizar los parámetros más frecuentemente (después de cada ejemplo o mini-lote), estos métodos pueden converger más rápidamente que el batch gradient descent, que espera hasta procesar todo el dataset para actualizar los parámetros.\n\n3. **Generalización**: La naturaleza ruidosa de las actualizaciones en SGD puede ayudar a escapar de mínimos locales y encontrar mejores soluciones en el espacio de parámetros, lo que a menudo mejora la capacidad de generalización del modelo.\n\n4. **Flexibilidad**: El Mini-batch Gradient Descent ofrece un equilibrio entre la estabilidad del batch gradient descent y la eficiencia del SGD, permitiendo ajustar el tamaño del mini-lote según los recursos disponibles y las necesidades específicas del problema.\n\nEstas características hacen que SGD y sus variantes sean más prácticos y efectivos para trabajar con grandes volúmenes de datos.",
+          "scores": {
+            "dataset_evaluator": 1.0
+          }
+        }
+      ]
+    }
+  ]
 }
