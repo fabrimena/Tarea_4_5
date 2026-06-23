@@ -15,7 +15,7 @@
 \begin{document}
 
 \title{Tareas 04 y 05: Sistema Multi-Agente con RAG, A2A, MCP y Memoria\\
-{\large Informe Preliminar --- Primera Entrega}}
+{\large Informe Final --- Segunda Entrega}}
 
 \author{
 \IEEEauthorblockN{Fabricio Mena Mejía}
@@ -28,105 +28,106 @@ anthonyfuentescalvo@estudiantec.cr}
 \and
 \IEEEauthorblockN{Fernando Sánchez Hidalgo}
 \IEEEauthorblockA{Instituto Tecnológico de Costa Rica\\
-Fer.sanchez@estudiantec.cr}
+fer.sanchez@estudiantec.cr}
 }
 
 \maketitle
 
 \begin{abstract}
-Este informe documenta el prototipo funcional desarrollado como primera entrega del proyecto de sistema multi-agente para el curso de Inteligencia Artificial del Instituto Tecnológico de Costa Rica. El sistema implementado integra un agente orquestador basado en GPT-4o, una canalización RAG (\textit{Retrieval-Augmented Generation}) sobre los apuntes del curso almacenados en ChromaDB, un agente de búsqueda web mediante la API de Tavily, un agente resumidor y observabilidad completa a través de Langfuse. Se describe la arquitectura inicial, las decisiones técnicas tomadas, los problemas encontrados durante el desarrollo y el plan de trabajo para incorporar los componentes restantes en la segunda entrega.
+Este informe documenta el sistema multi-agente completo desarrollado como entrega final del proyecto para el curso de Inteligencia Artificial del Instituto Tecnológico de Costa Rica. El sistema integra un agente orquestador basado en GPT-4o, una canalización RAG con índice jerárquico RAPTOR, query expansion y reranking sobre apuntes del curso almacenados en ChromaDB, un agente de búsqueda web mediante la API de Tavily, un agente resumidor, un agente transaccional conectado a un servidor MCP con herramientas controladas sobre PostgreSQL en Docker, memoria conversacional de sesión e histórica persistente en SQLite, y observabilidad completa mediante Langfuse. Se describen la arquitectura final, las mejoras incorporadas sobre la primera entrega, las decisiones técnicas, los resultados de la evaluación experimental sobre cuatro conjuntos de datos ejecutados y el análisis de errores del sistema.
 \end{abstract}
 
 % ================================================================
 \section{Introducción}
 % ================================================================
 
-El objetivo del proyecto es construir un sistema multi-agente capaz de responder preguntas académicas apoyándose en los apuntes del curso de Inteligencia Artificial, fuentes externas en internet y, en la segunda etapa, en una base de datos transaccional ficticia. El sistema debe combinar técnicas de RAG, orquestación de agentes, memoria conversacional y observabilidad de trazas.
+El objetivo del proyecto es construir un sistema multi-agente capaz de responder preguntas académicas apoyándose en los apuntes del curso de Inteligencia Artificial, fuentes externas en internet y en una base de datos transaccional ficticia para detección de fraude. El sistema combina técnicas de RAG, orquestación de agentes, protocolo MCP (\textit{Model Context Protocol}), memoria conversacional persistente y observabilidad de trazas.
 
-Esta primera entrega corresponde al prototipo funcional. Se implementaron el agente orquestador, la canalización RAG con ChromaDB, el agente de búsqueda web, el agente resumidor y la observabilidad con Langfuse, además de una interfaz web mínima con Streamlit. En las secciones siguientes se documenta la arquitectura adoptada, las decisiones técnicas relevantes, los problemas encontrados y el plan para la segunda entrega.
+Esta entrega final consolida todos los componentes del sistema. Sobre el prototipo inicial se incorporaron: índice jerárquico RAPTOR con resúmenes por semana y resumen global, query expansion automática, reranking con LLM, expansión de vecinos contextuales, agente transaccional con MCP Server sobre PostgreSQL en Docker, registro de auditoría en tabla \texttt{tool\_access\_logs}, memoria histórica en SQLite y conversaciones multi-turno.
+
+% ================================================================
+\section{Mejoras sobre la Primera Entrega}
+% ================================================================
+
+La primera entrega estableció el prototipo base con el orquestador, RAG simple con \texttt{chunk\_size=500} y \texttt{chunk\_overlap=100}, agente web, agente resumidor y observabilidad básica. Los componentes MCP Server, base de datos transaccional, memoria histórica y evaluación experimental completa estaban marcados como pendientes. A continuación se detallan las correcciones y mejoras incorporadas.
+
+\subsection{Correcciones incorporadas}
+
+\begin{itemize}
+    \item \textbf{Calidad de recuperación}: el RAG original fallaba en preguntas sobre autoría de apuntes y quizzes porque dependía de la nomenclatura de archivos. Se resolvió construyendo el índice RAPTOR, que almacena resúmenes con metadatos de autoría explícitos por semana.
+    \item \textbf{Codificación de PDFs}: se identificó que \texttt{pypdf} generaba artefactos de tildes (\texttt{´a}, \texttt{˜n}). Se agregó el módulo \texttt{fix\_encoding()} que corrige estas sustituciones antes de pasar el texto al LLM.
+    \item \textbf{Contratos de agentes}: la primera entrega solo tenía el contrato del agente RAG. Se formalizaron los contratos de todos los agentes del sistema.
+    \item \textbf{Segmentación}: se cambió el parámetro \texttt{chunk\_size} de 500 a 1500 caracteres y \texttt{chunk\_overlap} de 100 a 300. Esta decisión fue tomada cualitativamente: el tamaño mayor reduce la fragmentación de conceptos que ocupan múltiples párrafos en los apuntes.
+    \item \textbf{Componentes pendientes}: MCP Server, base transaccional, memoria histórica y evaluación experimental fueron implementados en esta entrega.
+\end{itemize}
+
+\subsection{Nuevas funcionalidades}
+
+\begin{itemize}
+    \item \textbf{RAPTOR}: índice jerárquico de dos niveles (resúmenes por semana y resumen global del curso) almacenado en la misma colección ChromaDB.
+    \item \textbf{Query expansion}: reformulación automática del query con \texttt{gpt-4o-mini} para mejorar el match semántico con el vocabulario de los apuntes.
+    \item \textbf{Reranking}: selección de los fragmentos más relevantes mediante un segundo LLM antes de generar la respuesta.
+    \item \textbf{Expansión de vecinos}: cuando se recuperan $\leq 2$ fragmentos, el sistema añade automáticamente los chunks adyacentes ($\pm 2$) del mismo archivo.
+    \item \textbf{Evaluación}: datasets y experimentos en langfuse implementados con un LLM-as-judge para evaluación automática del agente.
+\end{itemize}
 
 % ================================================================
 \section{Descripción General de la Arquitectura}
 % ================================================================
 
-La arquitectura del prototipo sigue un patrón de orquestación centralizada. Un agente principal (\textit{Orchestrator}) recibe cada pregunta del usuario, decide qué herramienta invocar y sintetiza la respuesta final.
-Los componentes principales son:
+La arquitectura sigue un patrón de orquestación centralizada. El agente orquestador recibe cada pregunta del usuario junto con el historial de la sesión, decide qué herramienta invocar mediante \textit{function calling} y sintetiza la respuesta final.
+
+Los componentes del sistema son:
 
 \begin{itemize}
-    \item \textbf{Base documental}: apuntes del curso en formato PDF, preprocesados y almacenados en ChromaDB como vectores de embeddings.
-    \item \textbf{Agente Orquestador}: modelo \texttt{gpt-4o}, encargado de seleccionar herramientas y construir la respuesta final.
-    \item \textbf{Agente RAG}: modelo \texttt{gpt-4o-mini}, genera respuestas a partir de los fragmentos recuperados de la base vectorial.
-    \item \textbf{Agente Web Search}: modelo \texttt{gpt-4o-mini} con la API de Tavily para búsquedas externas.
-    \item \textbf{Agente Resumidor}: modelo \texttt{gpt-4o-mini}, genera resúmenes de semanas específicas usando búsqueda vectorial filtrada por metadato.
-    \item \textbf{Observabilidad}: Langfuse registra trazas de cada ejecución, incluyendo spans de recuperación, generación y llamadas entre agentes.
-    \item \textbf{Interfaz web}: aplicación Streamlit que expone el agente al usuario.
+    \item \textbf{Base documental}: apuntes del curso en PDF, segmentados y almacenados en ChromaDB junto con nodos RAPTOR jerárquicos.
+    \item \textbf{Agente Orquestador}: modelo \texttt{gpt-4o} con \textit{function calling}, incorpora el historial de sesión en cada turno.
+    \item \textbf{Agente RAG}: modelo \texttt{gpt-4o-mini}, implementado en \texttt{rag.py}, con query expansion, búsqueda vectorial, expansión de vecinos y reranking.
+    \item \textbf{Agente Web Search}: modelo \texttt{gpt-4o-mini}, implementado en \texttt{websearch.py}, con API de Tavily (hasta 5 resultados).
+    \item \textbf{Agente Resumidor}: modelo \texttt{gpt-4o-mini}, función \texttt{summarize\_week} en \texttt{agent.py}, genera resúmenes filtrando ChromaDB por metadato \texttt{semana}.
+    \item \textbf{Agente Transaccional}: modelo \texttt{gpt-4o-mini}, función \texttt{run\_transactional\_agent} en \texttt{agent.py}, consulta la BD a través del MCP Server mediante transporte \texttt{stdio}.
+    \item \textbf{MCP Server}: servidor \texttt{FastMCP} en \texttt{mcp\_server/server.py}, expone cinco herramientas controladas sobre PostgreSQL.
+    \item \textbf{Memoria de sesión}: historial en \texttt{st.session\_state} pasado al orquestador en cada turno como parámetro \texttt{chat\_history}.
+    \item \textbf{Memoria histórica}: base SQLite (\texttt{memory.db}), módulo \texttt{memory.py}, consultable mediante la herramienta \texttt{consultar\_memoria}.
+    \item \textbf{Observabilidad}: Langfuse, spans jerárquicos por componente, métricas de calidad por traza.
+    \item \textbf{Interfaz web}: Streamlit (\texttt{app.py}) con historial visible y soporte multi-turno.
 \end{itemize}
 
 % ================================================================
-\section{Preprocesamiento Textual y Base Documental}
+\section{Diseño del RAG y Segmentación}
 % ================================================================
 
 \subsection{Extracción y limpieza}
 
-Los documentos del dataset provienen de apuntes elaborados por estudiantes del curso, nombrados con la convención \texttt{<semana>\_SEMANA\_AI\_<fecha>\_<número>.pdf}. El proceso de extracción utilizó la librería \texttt{pypdf} para leer cada página. Sobre el texto crudo se aplicaron las siguientes operaciones de limpieza:
+Los documentos provienen de apuntes en PDF nombrados con la convención \texttt{<semana>\_SEMANA\_AI\_<fecha>\_<número>.pdf}. Se utilizó \texttt{pypdf} para extraer texto. Sobre el texto crudo se aplicaron: eliminación de caracteres de control, normalización Unicode y corrección de artefactos de tildes mediante \texttt{fix\_encoding()}. Los metadatos de semana, fecha y número de documento se extraen mediante expresiones regulares sobre el nombre del archivo.
+
+\subsection{Estrategia de segmentación}
+
+Se utilizó \texttt{RecursiveCharacterTextSplitter} de LangChain con \texttt{chunk\_size=1500} y \texttt{chunk\_overlap=300}. Este parámetro fue modificado respecto a la primera entrega (\texttt{chunk\_size=500}, \texttt{chunk\_overlap=100}). El cambio resultó en una mejora en recuperación de información de los apuntes comparado con la configuración del primer reporte.
+
+\subsection{Índice RAPTOR jerárquico}
+
+Se construyó un índice RAPTOR mediante \texttt{build\_raptor\_index.py} con dos niveles almacenados en la misma colección ChromaDB:
 
 \begin{itemize}
-    \item Eliminación de caracteres de control y saltos de línea redundantes.
-    \item Normalización Unicode para corregir tildes y caracteres especiales del español.
-    \item Extracción automática de metadatos a partir del nombre del archivo mediante expresiones regulares: número de semana, fecha de elaboración y número de documento.
+    \item \textbf{Nivel 1} (\texttt{tipo=resumen\_semana}, id \texttt{raptor\_semana\_<N>}): un nodo por semana que incluye los autores de los apuntes, el quiz correspondiente según el mapeo \texttt{QUIZ\_POR\_SEMANA} y un resumen de los temas cubiertos.
+    \item \textbf{Nivel 2} (\texttt{tipo=resumen\_global}, id \texttt{raptor\_global}): un único nodo raíz que sintetiza el contenido de todas las semanas del curso.
 \end{itemize}
 
-\subsection{Metadatos extraídos}
+El nodo global siempre es incluido en el contexto final del RAG, lo que resolvió la limitación de la primera entrega en preguntas sobre autoría de apuntes y quizzes.
 
-Cada fragmento almacenado en la base vectorial incluye los siguientes metadatos:
+\subsection{Pipeline de recuperación}
 
-\begin{table}[htbp]
-\caption{Metadatos almacenados por fragmento}
-\label{tab:metadatos}
-\centering
-\begin{tabular}{ll}
-\toprule
-\textbf{Campo} & \textbf{Descripción} \\
-\midrule
-\texttt{semana}         & Número de semana del curso (entero) \\
-\texttt{fecha}          & Fecha del apunte (\texttt{YYYYMMDD}) \\
-\texttt{nombre\_archivo}& Nombre original del PDF \\
-\texttt{chunk\_index}   & Índice del fragmento dentro del documento \\
-\bottomrule
-\end{tabular}
-\end{table}
+El pipeline en \texttt{rag.py} sigue seis pasos:
 
-El metadato \texttt{semana} resulta especialmente útil para el agente resumidor, que filtra directamente la colección ChromaDB con \texttt{where=\{"semana": week\}} antes de ejecutar la consulta vectorial.
-
-\subsection{Segmentación}
-
-La estrategia de segmentación utilizada en el prototipo es \texttt{RecursiveCharacterTextSplitter} de LangChain con los siguientes parámetros:
-
-\begin{itemize}
-    \item \texttt{chunk\_size = 500} caracteres.
-    \item \texttt{chunk\_overlap = 100} caracteres.
-\end{itemize}
-
-Esta configuración fue elegida como punto de partida por ser balanceada entre granularidad semántica y costo de embeddings. En la segunda entrega se implementará y comparará una segunda estrategia de segmentación (por ejemplo, segmentación por párrafo o por oración) para evaluar cuál produce mejores resultados de recuperación.
-
-% ================================================================
-\section{Embeddings y Base Vectorial}
-% ================================================================
-
-\subsection{Modelo de embeddings}
-
-Se utilizó el modelo \texttt{text-embedding-3-small} de OpenAI para generar los vectores de los fragmentos. La selección se justifica por los siguientes factores:
-
-\begin{itemize}
-    \item \textbf{Disponibilidad}: accesible directamente a través de la API de OpenAI, sin infraestructura adicional.
-    \item \textbf{Costo}: es el modelo de embeddings de menor costo en el catálogo de OpenAI.
-    \item \textbf{Dimensión}: produce vectores de 1536 dimensiones, compatibles con ChromaDB sin configuración adicional.
-    \item \textbf{Soporte multilingüe}: maneja correctamente texto en español.
-\end{itemize}
-
-\subsection{Base vectorial}
-
-Se utilizó ChromaDB con almacenamiento persistente en disco (\texttt{PersistentClient}). La colección se denomina \texttt{apuntes\_ai} y los vectores se generan una única vez; en ejecuciones posteriores se reutilizan si la colección ya existe. El umbral de distancia coseno para filtrar fragmentos poco relevantes se fijó en \texttt{MAX\_DISTANCE = 0.6}.
+\begin{enumerate}
+    \item \textbf{Query expansion}: \texttt{gpt-4o-mini} reformula la pregunta en vocabulario técnico de los apuntes. Si la pregunta involucra autores, semanas o quizzes, el sistema agrega las palabras clave ``resumen global semanas autores quizzes''.
+    \item \textbf{Búsqueda vectorial}: se recuperan $k=8$ fragmentos de ChromaDB usando el query expandido y el modelo de embeddings \texttt{text-embedding-3-small}.
+    \item \textbf{Filtrado por distancia}: fragmentos con distancia coseno $> \texttt{MAX\_DISTANCE}=0.75$ son descartados. Si ninguno pasa el filtro, se utilizan los mejores $k$ de todas formas.
+    \item \textbf{Expansión de vecinos}: si se recuperan $\leq 2$ fragmentos, se añaden los chunks con índice $\pm 2$ del mismo archivo.
+    \item \textbf{Reranking}: \texttt{gpt-4o-mini} selecciona los \texttt{RERANK\_TOP\_K=3} fragmentos más relevantes, forzando siempre la inclusión del nodo \texttt{resumen\_global}.
+    \item \textbf{Generación}: el contexto final se pasa a \texttt{gpt-4o-mini} con instrucción de responder únicamente desde el contexto.
+\end{enumerate}
 
 % ================================================================
 \section{Diseño de Agentes y Responsabilidades}
@@ -134,141 +135,417 @@ Se utilizó ChromaDB con almacenamiento persistente en disco (\texttt{Persistent
 
 \subsection{Agente Orquestador}
 
-El orquestador utiliza el modelo \texttt{gpt-4o} con \textit{function calling}. Recibe la pregunta del usuario y decide, sin intervención manual, qué herramienta invocar. El \textit{system prompt} define tres herramientas disponibles:
+El orquestador (\texttt{gpt-4o}) recibe la pregunta y el historial de la sesión actual. Sus cinco herramientas disponibles son: \texttt{consultar\_apuntes}, \texttt{resumir\_semana}, \texttt{buscar\_en\_web}, \texttt{consultar\_transacciones} y \texttt{consultar\_memoria}. Si \texttt{consultar\_apuntes} retorna la cadena ``No encontré información suficiente'', el orquestador solicita confirmación del usuario antes de escalar a \texttt{buscar\_en\_web}.
 
-\begin{itemize}
-    \item \texttt{consultar\_apuntes}: invoca el pipeline RAG.
-    \item \texttt{resumir\_semana}: genera un resumen semanal filtrado por metadato.
-    \item \texttt{buscar\_en\_web}: ejecuta una búsqueda Tavily cuando la información no se encuentra en los apuntes o el usuario lo solicita explícitamente.
-\end{itemize}
-
-Una regla importante en el prompt es el \textit{fallback} automático: si \texttt{consultar\_apuntes} retorna la cadena ``No encontré información suficiente'', el orquestador escala automáticamente a \texttt{buscar\_en\_web} sin pedir confirmación al usuario.
-
-\subsection{Agente RAG}
-
-Implementado en \texttt{rag.py}, este agente recupera los $k=5$ fragmentos más relevantes de ChromaDB, filtra por distancia coseno y construye un contexto que envía al modelo \texttt{gpt-4o-mini}. El prompt instruye al modelo a responder únicamente desde el contexto recuperado, reduciendo alucinaciones.
-
-\subsection{Agente Web Search}
-
-Implementado en \texttt{websearch.py}, este agente llama a la API de Tavily con hasta cinco resultados, construye un contexto con título, URL y fragmento de cada resultado, y genera la respuesta con \texttt{gpt-4o-mini}.
-
-\subsection{Agente Resumidor}
-
-Implementado dentro de \texttt{agent.py} como la función \texttt{summarize\_week}. Realiza una búsqueda vectorial en ChromaDB filtrada por el metadato \texttt{semana} y genera un resumen con el modelo \texttt{gpt-4o-mini}.
-
-\subsection{Contratos de agentes}
-
-A continuación se muestra el contrato mínimo del Agente RAG como ejemplo:
+\subsection{Contratos de los agentes}
 
 \begin{verbatim}
-{
-  "agent_name": "NotesRAGAgent",
-  "description": "Recupera informacion
-    desde los apuntes del curso.",
-  "skills": ["search_notes",
-             "answer_from_notes"],
-  "allowed_tools": ["rag_tool"],
+{ "agent_name": "OrchestratorAgent",
+  "model": "gpt-4o",
+  "skills": ["route_query",
+             "synthesize_answer",
+             "manage_history"],
+  "allowed_tools": ["consultar_apuntes",
+    "resumir_semana", "buscar_en_web",
+    "consultar_transacciones",
+    "consultar_memoria"],
+  "restrictions": [
+    "No responder sin invocar herramienta.",
+    "Incluir historial en cada turno."] }
+
+{ "agent_name": "NotesRAGAgent",
+  "model": "gpt-4o-mini",
+  "skills": ["expand_query","search_notes",
+             "rerank","answer_from_notes"],
+  "allowed_tools": ["chromadb_query"],
   "restrictions": [
     "Responder solo desde el contexto.",
     "No inventar fuentes.",
-    "No usar busqueda web."
-  ]
-}
+    "No usar busqueda web."] }
+
+{ "agent_name": "WebSearchAgent",
+  "model": "gpt-4o-mini",
+  "skills": ["web_search",
+             "answer_from_web"],
+  "allowed_tools": ["tavily_search"],
+  "restrictions": [
+    "Indicar fuentes y URLs.",
+    "No inventar resultados."] }
+
+{ "agent_name": "TransactionalAgent",
+  "model": "gpt-4o-mini",
+  "skills": ["call_mcp","interpret_result"],
+  "allowed_tools": ["mcp_stdio_client"],
+  "restrictions": [
+    "Justificacion obligatoria.",
+    "No exponer datos sin anonimizar.",
+    "No ejecutar SQL directo."] }
+
+{ "agent_name": "MemoryAgent",
+  "model": "none",
+  "skills": ["query_session",
+             "query_history",
+             "search_messages"],
+  "allowed_tools": ["sqlite_memory"],
+  "restrictions": [
+    "Solo lectura.",
+    "No modificar historial."] }
 \end{verbatim}
 
 % ================================================================
-\section{Observabilidad con Langfuse}
+\section{Diseño del MCP Server}
 % ================================================================
 
-Se integró Langfuse mediante el SDK oficial de Python (\texttt{langfuse.openai}). Cada ejecución del agente crea un \textit{span} raíz llamado \texttt{agent\_run} que anida los siguientes sub-spans:
+\subsection{Servidor MCP}
+
+El servidor fue implementado con \texttt{FastMCP} (\texttt{mcp\_server/server.py}) y se ejecuta como subproceso del agente mediante transporte \texttt{stdio} a través del cliente \texttt{mcp\_client.py}. El cliente lanza el servidor con \texttt{StdioServerParameters} apuntando a \texttt{mcp\_server.server}, inicializa la sesión y llama la herramienta de forma asíncrona.
+
+\subsection{Base de datos relacional}
+
+La base de datos PostgreSQL se ejecuta en Docker (\texttt{db/docker-compose.yml}, imagen \texttt{postgres:16-alpine}, contenedor \texttt{tarea\_fraud\_db}). El esquema, definido en \texttt{db/schema.sql}, contiene las siguientes tablas:
+
+\begin{table}[htbp]
+\caption{Esquema de la base de datos transaccional}
+\label{tab:schema}
+\centering
+\begin{tabular}{p{2.8cm}p{5cm}}
+\toprule
+\textbf{Tabla} & \textbf{Campos principales} \\
+\midrule
+\texttt{customers}          & id, full\_name, email, country, risk\_level \\
+\texttt{accounts}           & id, customer\_id, account\_number, balance, status \\
+\texttt{transactions}       & id, account\_id, amount, currency, country, status, is\_flagged \\
+\texttt{fraud\_cases}       & id, transaction\_id, reason, severity, status \\
+\texttt{tool\_access\_logs} & id, tool\_name, justification, request\_data (JSONB), created\_at \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La base fue poblada mediante \texttt{db/seed.py} con 5 clientes, 5 cuentas y transacciones que incluyen patrones sospechosos.
+
+\subsection{Herramientas expuestas}
+
+Las cinco herramientas del MCP son: \texttt{get\_transaction\_by\_id}, \texttt{search\_transactions}, \texttt{get\_customer\_risk\_summary}, \texttt{get\_recent\_flagged\_transactions} y \texttt{create\_fraud\_case}. No se expone ninguna herramienta de ejecución SQL libre.
+
+% ================================================================
+\section{Reglas de Seguridad y Acceso}
+% ================================================================
+
+\subsection{Justificación obligatoria}
+
+Todas las herramientas del MCP reciben un parámetro \texttt{justification}. La función \texttt{validate\_justification()} rechaza cadenas con menos de 10 caracteres lanzando \texttt{ValueError} antes de ejecutar cualquier consulta.
+
+\subsection{Prevención de consultas masivas}
+
+La herramienta \texttt{search\_transactions} comprueba que se haya proporcionado al menos un filtro explícito (cliente, estado, rango de fechas, monto o indicador de sospecha). Todas las consultas de búsqueda aplican internamente un \texttt{LIMIT} de 20 registros.
+
+\subsection{Anonimización}
+
+La función \texttt{\_anonymize\_customer()} trunca el campo \texttt{full\_name} a iniciales antes de retornar los datos al agente.
+
+\subsection{Registro de auditoría}
+
+Cada invocación a una herramienta MCP llama a \texttt{log\_tool\_access()}, que inserta un registro en la tabla \texttt{tool\_access\_logs} con: nombre de la herramienta, justificación, parámetros de la solicitud en formato JSONB y marca de tiempo. Esta tabla constituye el registro de auditoría completo de todas las consultas realizadas por el agente sobre la base de datos.
+
+% ================================================================
+\section{Memoria Conversacional}
+% ================================================================
+
+\subsection{Memoria de sesión}
+
+El historial de la sesión activa se mantiene en \texttt{st.session\_state} de Streamlit y se pasa al orquestador en cada turno como el parámetro \texttt{chat\_history}, permitiendo conversaciones multi-turno coherentes.
+
+\subsection{Memoria histórica persistente}
+
+La memoria entre sesiones se almacena en SQLite (\texttt{memory.db}), módulo \texttt{memory.py}. El esquema tiene dos tablas: \texttt{sessions} (id, started\_at, summary) y \texttt{messages} (id, session\_id, role, content, timestamp).
+
+Las funciones del módulo son: \texttt{init\_db()}, \texttt{create\_session()}, \texttt{save\_message()}, \texttt{save\_session\_summary()}, \texttt{get\_session\_messages()}, \texttt{get\_user\_messages()}, \texttt{search\_history()} (búsqueda por texto con \texttt{LIKE}), \texttt{get\_recent\_sessions()} y \texttt{get\_all\_messages\_today()}.
+
+El agente de memoria, \texttt{run\_memory\_query()} en \texttt{agent.py}, soporta cuatro modos de consulta: \texttt{sesion\_actual}, \texttt{hoy}, \texttt{sesiones\_recientes} y \texttt{mensajes\_usuario} (búsqueda libre por texto en sesiones anteriores).
+
+% ================================================================
+\section{Observabilidad}
+% ================================================================
+
+Se integró Langfuse mediante el SDK oficial de Python (\texttt{langfuse.openai}). Cada ejecución crea un span raíz \texttt{agent\_run} que anida los siguientes sub-spans:
 
 \begin{itemize}
-    \item \texttt{agent\_decision}: captura la llamada de \textit{function calling} al orquestador.
-    \item \texttt{tool\_calls}: registra la ejecución de cada herramienta invocada.
-    \item \texttt{rag\_pipeline} $\to$ \texttt{retrieve\_documents} $\to$ \texttt{generate\_answer}: trazabilidad interna del pipeline RAG.
-    \item \texttt{websearch\_pipeline} $\to$ \texttt{web\_search\_retrieve} $\to$ \texttt{websearch\_generate\_answer}: trazabilidad del agente web.
-    \item \texttt{agent\_final\_response}: respuesta sintetizada por el orquestador.
+    \item \texttt{agent\_decision}: herramienta elegida por el orquestador.
+    \item \texttt{tool\_calls}: herramienta invocada y argumentos.
+    \item \texttt{rag\_pipeline} $\to$ \texttt{retrieve\_documents} $\to$ \texttt{generate\_answer}: query expandido, chunks recuperados con scores, respuesta generada.
+    \item \texttt{websearch\_pipeline} $\to$ \texttt{web\_search\_retrieve} $\to$ \texttt{websearch\_generate\_answer}: URLs consultadas y respuesta generada.
+    \item \texttt{transactional\_agent} $\to$ \texttt{mcp\_call:<accion>}: herramienta MCP, argumentos y resultado.
+    \item \texttt{memory\_query}: tipo de consulta de memoria y contenido devuelto.
+    \item \texttt{summarize\_week}: semana consultada y resumen generado.
+    \item \texttt{agent\_final\_response}: respuesta final al usuario.
 \end{itemize}
 
-Adicionalmente, el pipeline RAG registra tres métricas de calidad por traza: \texttt{context\_relevance} (calculada como $1 - \bar{d}$ donde $\bar{d}$ es la distancia coseno promedio), \texttt{answer\_correctness} y \texttt{groundedness}.
+El pipeline RAG calcula y registra en Langfuse la métrica \texttt{context\_relevance} como $1 - \bar{d}$, donde $\bar{d}$ es el promedio de las distancias coseno de los fragmentos recuperados. Adicionalmente registra \texttt{answer\_correctness} y \texttt{groundedness} con valor fijo 1.0 (son calculadas por el evaluador LLM en los experimentos). La función \texttt{lf.flush()} al final de cada ejecución garantiza la escritura inmediata de las trazas.
 
 % ================================================================
-\section{Interfaz Web}
+\section{Evaluación Experimental}
 % ================================================================
 
-La interfaz se implementó con Streamlit (\texttt{app.py}). Permite al usuario ingresar una pregunta en un campo de texto y obtener la respuesta generada por el agente junto con los documentos recuperados y sus metadatos desplegados en secciones expandibles. La interfaz es intencionalmente minimalista para esta primera entrega; en la segunda entrega se ampliará para soportar memoria conversacional visible.
+La evaluación fue implementada en \texttt{run\_experiments.py} utilizando los datasets de Langfuse. Se ejecutó la función \texttt{evaluate\_agent()} sobre los datasets \texttt{factual}, \texttt{comparacion}, \texttt{fuera\_alcance} y \texttt{websearch} (Run~2).
+
+\subsection{Datasets ejecutados}
+
+\begin{table}[htbp]
+\caption{Datasets ejecutados (Run 2)}
+\label{tab:datasets}
+\centering
+\begin{tabular}{p{2.5cm}p{0.7cm}p{4.6cm}}
+\toprule
+\textbf{Dataset} & \textbf{N} & \textbf{Tipo de preguntas} \\
+\midrule
+\texttt{factual}        & 10 & Conceptos concretos del curso (learning rate, MSE, SGD, quizzes, etc.) \\
+\texttt{comparacion}    & 5  & Diferencias entre conceptos o enfoques \\
+\texttt{fuera\_alcance} & 5  & Temas ajenos al curso (se espera que el agente ofrezca búsqueda web) \\
+\texttt{websearch}      & 5  & Búsquedas web explícitas sobre herramientas y precios actuales \\
+\texttt{transactional}  & 5  & Preguntas sobre la base de datos transaccional \\
+\texttt{conversacion}   & 5  & Conversaciones con preguntas de seguimiento \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Resultados ítem por ítem}
+
+La Tabla~\ref{tab:factual} presenta los scores individuales del dataset \texttt{factual} tal como aparecen en el output del notebook.
+
+\begin{table}[htbp]
+\caption{Scores del dataset \texttt{factual} (Run 2, 10 ítems)}
+\label{tab:factual}
+\centering
+\begin{tabular}{p{3.5cm}p{3.2cm}p{1.1cm}p{1.1cm}}
+\toprule
+\textbf{Pregunta} & \textbf{Score del evaluador} \\
+\midrule
+¿Qué es el learning rate?         & 0.90 \\
+¿Qué es el MSE?                   & 1.00 \\
+¿Qué es batch GD?                 & 1.00 \\
+Función de perdida                & 1.00 \\
+¿Qué es mini-batch GD?            & 1.00 \\
+Técnicas para overfitting         & 0.70 \\
+¿Quién anotó quiz 2?              & 0.50 \\
+¿Qué es aprend. supervisado?      & 1.00 \\
+¿En qué semana fue el quiz 4?     & 1.00 \\
+Retropropagación                  & 0.70 \\
+\midrule
+\textbf{Promedio}                 & \textbf{0.88} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:comparacion} presenta los scores del dataset \texttt{comparacion}.
+
+\begin{table}[htbp]
+\caption{Scores del dataset \texttt{comparacion} (Run 2, 5 ítems)}
+\label{tab:comparacion}
+\centering
+\begin{tabular}{p{3.5cm}p{3.2cm}p{1.1cm}p{1.1cm}}
+\toprule
+\textbf{Pregunta} & \textbf{Score del evaluador} \\
+\midrule
+Enfoque científico vs ingenieril  & 1.00 \\
+BGD vs SGD (comparación)          & 1.00 \\
+Supervisado vs no supervisado     & 0.90 \\
+Verosimilitud vs MSE (comp.)      & 1.00 \\
+overfitting vs underfitting       & 1.00 \\
+\midrule
+\textbf{Promedio}                 & \textbf{0.98} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:fuera} presenta los scores del dataset \texttt{fuera\_alcance}.
+
+\begin{table}[htbp]
+\caption{Scores del dataset \texttt{fuera\_alcance} (Run 2, 5 ítems)}
+\label{tab:fuera}
+\centering
+\begin{tabular}{p{3.5cm}p{3.2cm}p{1.1cm}p{1.1cm}}
+\toprule
+\textbf{Pregunta} & \textbf{Score del evaluador} \\
+\midrule
+¿Cómo funciona un motor CVT?      & 1.00 \\
+\$157 en colones (tipo de cambio) & 0.70 \\
+¿Capital de Australia?            & 1.00 \\
+Guitarra acústica vs eléctrica    & 1.00 \\
+¿Receta del gallo pinto?          & 1.00 \\
+\midrule
+\textbf{Promedio}                 & \textbf{0.94} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:websearch} presenta los scores del dataset \texttt{websearch}.
+
+\begin{table}[htbp]
+\caption{Scores del dataset \texttt{websearch} (Run 2, 5 ítems)}
+\label{tab:websearch}
+\centering
+\begin{tabular}{p{3.5cm}p{3.2cm}}
+\toprule
+\textbf{Pregunta} & \textbf{Score del evaluador} \\
+\midrule
+Última versión de LangChain       & 0.90 \\
+Precio API GPT-4o                 & 0.50 \\
+Novedades Google I/O 2025         & 0.70 \\
+¿Qué es LangGraph?                & 0.70 \\
+Modelos OpenAI lanzados en 2025   & 0.70 \\
+\midrule
+\textbf{Promedio}                 & \textbf{0.70} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los datasets de LangFuse, no permiten evaluar una estructura de conversación de un modelo, únicamente la resolución de una pregunta, para solventar este problema, se generó un hilo de conversación, donde se genera un contexto para el modelo y luego se indica una última pregunta que referencia mensajes pasados del mismo hilo, la tabla~\ref{tab:conversacion} presenta la calificación del evaluador sobre esta última pregunta.
+
+\begin{table}[htbp]
+\caption{Scores del dataset \texttt{conversacion} (Run 2, 5 ítems)}
+\label{tab:conversacion}
+\centering
+\begin{tabular}{p{3.5cm}p{3.2cm}}
+\toprule
+\textbf{Pregunta} & \textbf{Score del evaluador} \\
+\midrule
+Clasificación con 0.85            & 1.00 \\
+Diferencia apr. supervisado       & 0.70 \\
+Técnicas efectivas                & 0.70 \\
+Comparación red neuronal          & 1.00 \\
+Recomendación datasets grandes    & 0.90 \\
+\midrule
+\textbf{Promedio}                 & \textbf{0.86} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Resumen de promedios}
+
+\begin{table}[htbp]
+\caption{Promedio de \texttt{dataset\_evaluator} por dataset (Run 2)}
+\label{tab:resumen}
+\centering
+\begin{tabular}{p{3cm}p{1.2cm}p{1.2cm}p{1.5cm}}
+\toprule
+\textbf{Dataset} & \textbf{N} & \textbf{Score del evaluador} \\
+\midrule
+\texttt{factual}        & 10 & 0.88 \\
+\texttt{comparacion}    & 5  & 0.98 \\
+\texttt{fuera\_alcance} & 5  & 0.94 \\
+\texttt{websearch}      & 5  & 0.70 \\
+\texttt{transactional}  & 5  & ---  \\
+\texttt{conversacion}   & 5  & 0.86  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ================================================================
+\section{Análisis de Errores}
+% ================================================================
+
+\subsection{Errores identificados en los resultados}
+
+\begin{enumerate}
+    \item \textbf{Atribución de autoría del quiz 2} (\texttt{dataset\_evaluator=0.50}): la respuesta del sistema listó cuatro autores de la semana 6 (David Blanco Láscarez, Emmanuel José Matamoros Jiménez, Roberto José Garita Mata y Victor Aymerich), mientras que la respuesta esperada era únicamente Roberto José Garita Mata y/o David Blanco Láscarez. El RAPTOR incluye todos los autores de la semana porque no distingue quién anotó específicamente el quiz. El \texttt{dataset\_evaluator} penalizó la respuesta por exceso de información.
+
+    \item \textbf{Técnicas para overfitting} (\texttt{dataset\_evaluator=0.70}): la respuesta incluyó ``aumentar la complejidad del modelo si es muy simple'' como caso complementario, que no aparecía en la respuesta esperada. La respuesta esperada listaba solo simplificar modelo, reducir dimensionalidad y usar más datos.
+
+    \item \textbf{Retropropagación} (\texttt{dataset\_evaluator=0.70}): la respuesta describió el proceso sin mencionar explícitamente la propagación hacia atrás del error como mecanismo, que era el punto clave de la respuesta esperada.
+
+    \item \textbf{Precio de la API de GPT-4o} (\texttt{dataset\_evaluator=0.50}): la búsqueda web retornó información sobre GPT-4.5 en lugar de GPT-4o, y la respuesta confundió ambos modelos. Este error refleja la limitación del agente web al no verificar que el resultado corresponda exactamente al modelo solicitado.
+
+    \item \textbf{Modelos OpenAI 2025} (\texttt{dataset\_evaluator=0.70}): el agente respondió desde su conocimiento de entrenamiento indicando que no puede buscar información sobre 2025, en lugar de activar la herramienta \texttt{buscar\_en\_web}. Este es el mismo problema de escalado del punto anterior.
+\end{enumerate}
+
+\subsection{Limitaciones del sistema}
+
+\begin{itemize}
+    \item La métrica \texttt{context\_relevance} produce valores negativos en el dataset \texttt{fuera\_alcance} (por ejemplo $-0.28$, $-0.32$, $-0.46$), ya que la fórmula $1 - \bar{d}$ puede ser negativa cuando la distancia coseno promedio supera 1.0. Esto ocurre cuando los fragmentos recuperados son semánticamente muy lejanos de la pregunta, que es el comportamiento esperado para preguntas fuera del dominio.
+    \item El orquestador tiende a responder desde el RAG antes de escalar a búsqueda web, incluso cuando la pregunta es explícitamente sobre información actual o externa. Esto se refleja en el bajo score del dataset \texttt{websearch} (0.70) y en algunos ítems del dataset \texttt{fuera\_alcance}.
+    \item La memoria histórica usa búsqueda por texto simple (\texttt{LIKE}); consultas semánticas sobre el historial no están soportadas.
+    \item El transporte \texttt{stdio} del MCP lanza un subproceso en cada llamada, introduciendo latencia en cada consulta transaccional.
+\end{itemize}
 
 % ================================================================
 \section{Problemas Encontrados}
 % ================================================================
 
-Durante el desarrollo del prototipo se encontraron los siguientes problemas:
-
 \begin{enumerate}
-    \item \textbf{Calidad de los PDFs}: varios apuntes presentaron texto con codificación irregular o caracteres corruptos tras la extracción con \texttt{pypdf}. Fue necesario aplicar normalización Unicode y eliminar caracteres no imprimibles antes de segmentar.
+    \item \textbf{Calidad de los PDFs}: texto con codificación irregular tras la extracción con \texttt{pypdf} (artefactos como \texttt{´a}, \texttt{˜n}). Se resolvió con el módulo \texttt{fix\_encoding()}.
 
-    \item \textbf{Extracción de metadatos desde el nombre de archivo}: algunos archivos no seguían la convención de nomenclatura esperada (por ejemplo, \texttt{13\_SEMANA\_AI\_2018191805\_1.pdf}), lo que hizo que la expresión regular retornara \texttt{None} para los campos de semana y fecha. Se implementó un manejo de casos por defecto, pero estos documentos se almacenan sin metadato de semana y no pueden ser filtrados por el agente resumidor.
+    \item \textbf{Metadatos faltantes}: algunos archivos no seguían la convención de nomenclatura, por lo que la expresión regular retornaba \texttt{None}. Se implementó manejo por defecto; estos documentos se almacenan sin metadato de semana.
 
-    \item \textbf{Límites de la API de Tavily}: Al utilizarse una prueba gratuita para la API, se puede llegar a un límite de peticiones, interrumpiendo el flujo del agente web. Se implementó manejo de excepciones que retorna una lista vacía y el orquestador informa al usuario que no se encontraron resultados.
+    \item \textbf{Costo de embeddings}: regeneraciones múltiples consumieron aproximadamente 914k tokens en la API de OpenAI. Se agregó verificación para reutilizar la colección existente si ya contiene documentos.
 
-    \item \textbf{Sincronización del contexto de Langfuse}: al ejecutar el agente en múltiples hilos (por la naturaleza de Streamlit), las trazas ocasionalmente se anidaban de forma incorrecta. Se resolvió llamando a \texttt{lf.flush()} al final de cada ejecución de agente para garantizar el envío inmediato.
+    \item \textbf{Sincronización de Langfuse}: trazas anidadas incorrectamente en Streamlit multi-hilo. Se resolvió con \texttt{lf.flush()} al final de cada ejecución.
 
-    \item \textbf{Costo de generación de embeddings}: el proceso inicial de generación de embeddings para todo el dataset tomó varios minutos y generó costos no triviales en la API de OpenAI, consumiendo alrededor de 914k tokens el primer día ya que se regeneraron varias veces debido a malos formateos en el texto de los datos adquiridos de los pdf. Se agregó una verificación que omite la re-generación si la colección ya contiene documentos.
+    \item \textbf{Transporte stdio del MCP}: el cliente lanza un subproceso en cada llamada. Se mantuvo stdio para simplificar el despliegue.
+
+    \item \textbf{Balance del prompt de escalado}: el orquestador no siempre escala a búsqueda web ante preguntas sobre información actual o explícitamente externa, como se evidencia en los errores 5 y 6 de la sección anterior.
+
+    \item \textbf{Concurrencia en SQLite}: posibles colisiones en escrituras paralelas de Streamlit. Se mitigó con conexiones de corta vida (\texttt{connect}/\texttt{close} en cada operación) y el modo WAL de SQLite.
 \end{enumerate}
 
 % ================================================================
-\section{Plan para la Segunda Entrega}
+\section{Instrucciones de Reproducibilidad}
 % ================================================================
 
-La segunda entrega incorporará los componentes restantes del sistema. La Tabla~\ref{tab:plan} resume las tareas planificadas.
+\subsection{Requisitos}
 
-\begin{table}[htbp]
-\caption{Plan de trabajo para la segunda entrega}
-\label{tab:plan}
-\centering
-\begin{tabular}{p{4.5cm}p{2.5cm}}
-\toprule
-\textbf{Componente} & \textbf{Estado objetivo} \\
-\midrule
-Agente Transaccional & En desarrollo \\
-MCP Server con herramientas controladas & En desarrollo \\
-Base de datos relacional ficticia en Docker & Por implementar \\
-Reglas de seguridad y anonimización MCP & Por implementar \\
-Agente web search & En desarrollo \\
-Memoria temporal de sesión & Por implementar \\
-Memoria histórica persistente & Por implementar \\
-Evaluación experimental (35 preguntas) & En desarrollo \\
-Corrección de observaciones de la primera entrega & Por implementar \\
-\bottomrule
-\end{tabular}
-\end{table}
+Python 3.11 o superior, Docker y Docker Compose. Se requieren las siguientes variables de entorno en un archivo \texttt{.env} en la raíz del proyecto:
 
-En particular, para los componentes más complejos se describen a continuación las decisiones de diseño tentativas:
+\begin{verbatim}
+OPENAI_API_KEY=sk-...
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+TAVILY_API_KEY=tvly-...
+DATABASE_URL=postgresql://fraud_user:
+  fraud_pass@localhost:5432/fraud_db
+\end{verbatim}
 
-\subsection{MCP Server y base transaccional}
+\subsection{Instalación de dependencias}
 
-Se construirá un servidor MCP usando FastAPI o la librería oficial de MCP para Python. La base de datos relacional se ejecutará en Docker (PostgreSQL) y será poblada con un script Python que genere clientes, cuentas, transacciones normales y transacciones sospechosas siguiendo los patrones definidos en el enunciado. Las herramientas expuestas serán: \texttt{get\_transaction\_by\_id}, \texttt{search\_transactions}, \texttt{get\_customer\_risk\_summary}, \texttt{get\_recent\_flagged\_transactions} y \texttt{create\_fraud\_case}. No se expondrá ninguna herramienta de ejecución SQL libre para la entrega final.
+\begin{verbatim}
+pip install -r requirements.txt
+\end{verbatim}
 
-\subsection{Memoria conversacional}
+\subsection{Inicialización de la base de datos}
 
-La memoria temporal de sesión se implementará manteniendo el historial de mensajes en la sesión de Streamlit (\texttt{st.session\_state}). La memoria histórica persistente se almacenará en la misma base de datos PostgreSQL, en una tabla de sesiones y mensajes, permitiendo consultas como ``¿qué pregunté anteriormente sobre descenso del gradiente?''.
+\begin{verbatim}
+cd db
+docker compose up -d
+python seed.py
+cd ..
+\end{verbatim}
 
-\subsection{Agente de búsqueda web}
+\subsection{Construcción del índice RAG}
 
-El agente para búsquedas web se realiza utilizando una API de Tavily. El modelo orquestador, al determinar que los documentos del RAG son insuficientes para resolver la consulta, utiliza la herramienta \texttt{ask\_web\_search} para obtener resultados de internet sin consultar al usuario, indicando fuentes y metadatos correspondientes.
+\begin{verbatim}
+python ingest.py
+python build_raptor_index.py
+\end{verbatim}
+
+\subsection{Ejecución de la aplicación}
+
+\begin{verbatim}
+streamlit run app.py
+\end{verbatim}
 
 \subsection{Evaluación experimental}
 
-Se utilizan los \texttt{datasets} de langfuse para automatizar la evaluación del modelo, cada dataset contiene el número de ítems solicitados, con cada ítem conteniendo dos parámetros (pregunta, respuesta), mostrando la consulta y la respuesta esperada del modelo, utilizando python se muestran tanto la pregunta, respuesta esperada y respuesta obtenida para comparación
+\begin{verbatim}
+python run_experiments.py
+\end{verbatim}
+
 % ================================================================
 \section{Conclusiones}
 % ================================================================
 
-El prototipo de primera entrega demuestra que la arquitectura base del sistema multi-agente es funcional: el orquestador selecciona correctamente las herramientas, el pipeline RAG recupera fragmentos relevantes desde los apuntes, el agente web complementa la información cuando es necesario y Langfuse registra trazas completas de cada ejecución. Los principales desafíos identificados son la calidad variable de los PDFs fuente y la nomenclatura inconsistente de algunos archivos. Estos problemas serán abordados en la segunda entrega junto con la incorporación del MCP Server, la base de datos transaccional, la memoria persistente y la evaluación experimental completa.
+El sistema multi-agente desarrollado en su versión final tiene todos los componentes planificados implementados: el orquestador con cinco herramientas, el pipeline RAG con RAPTOR, query expansion y reranking, el agente web con Tavily, el agente transaccional con MCP Server sobre PostgreSQL, y memoria de sesión e histórica en SQLite.
 
-% ================================================================
-\section*{Referencias}
-% ================================================================
+La evaluación experimental sobre los datasets ejecutados demuestran una ejecución altamente aceptable del agente, utilizando sus herramientas a cómo sea necesario y obteniendo la información correspondientes con la excepción de la búsqueda web que se mantiene entre la sobreutilización o subutilización de la herramienta de búsqueda web dependiendo de la configuración.
 
 \begin{thebibliography}{00}
 
@@ -289,6 +566,15 @@ LangChain, ``Text Splitters,'' 2026. [Online]. Available: \url{https://python.la
 
 \bibitem{streamlit_docs}
 Streamlit, ``Streamlit Documentation,'' 2026. [Online]. Available: \url{https://docs.streamlit.io}. [Accessed: Jun. 2026].
+
+\bibitem{mcp_docs}
+Anthropic, ``Model Context Protocol (MCP),'' 2026. [Online]. Available: \url{https://modelcontextprotocol.io/docs}. [Accessed: Jun. 2026].
+
+\bibitem{sqlite_docs}
+SQLite, ``SQLite Documentation,'' 2026. [Online]. Available: \url{https://www.sqlite.org/docs.html}. [Accessed: Jun. 2026].
+
+\bibitem{raptor}
+S. Sarthi et al., ``RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval,'' \textit{arXiv preprint arXiv:2401.18059}, 2024.
 
 \end{thebibliography}
 
