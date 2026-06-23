@@ -320,18 +320,18 @@ La Tabla~\ref{tab:factual} presenta los scores individuales del dataset \texttt{
 \toprule
 \textbf{Pregunta} & \textbf{Score del evaluador} \\
 \midrule
-¿Qué es el learning rate?         & 0.90 \\
+¿Qué es el learning rate?         & 1.00 \\
 ¿Qué es el MSE?                   & 1.00 \\
 ¿Qué es batch GD?                 & 1.00 \\
 Función de perdida                & 1.00 \\
 ¿Qué es mini-batch GD?            & 1.00 \\
-Técnicas para overfitting         & 0.70 \\
-¿Quién anotó quiz 2?              & 0.50 \\
+Técnicas para overfitting         & 0.90 \\
+¿Quién anotó quiz 2?              & 0.70 \\
 ¿Qué es aprend. supervisado?      & 1.00 \\
 ¿En qué semana fue el quiz 4?     & 1.00 \\
-Retropropagación                  & 0.70 \\
+Retropropagación                  & 0.90 \\
 \midrule
-\textbf{Promedio}                 & \textbf{0.88} \\
+\textbf{Promedio}                 & \textbf{0.95} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -346,7 +346,7 @@ La Tabla~\ref{tab:comparacion} presenta los scores del dataset \texttt{comparaci
 \toprule
 \textbf{Pregunta} & \textbf{Score del evaluador} \\
 \midrule
-Enfoque científico vs ingenieril  & 1.00 \\
+Enfoque científico vs ingenieril  & 0.90 \\
 BGD vs SGD (comparación)          & 1.00 \\
 Supervisado vs no supervisado     & 0.90 \\
 Verosimilitud vs MSE (comp.)      & 1.00 \\
@@ -367,13 +367,13 @@ La Tabla~\ref{tab:fuera} presenta los scores del dataset \texttt{fuera\_alcance}
 \toprule
 \textbf{Pregunta} & \textbf{Score del evaluador} \\
 \midrule
-¿Cómo funciona un motor CVT?      & 1.00 \\
+¿Cómo funciona un motor CVT?      & 0.70 \\
 \$157 en colones (tipo de cambio) & 0.70 \\
-¿Capital de Australia?            & 1.00 \\
-Guitarra acústica vs eléctrica    & 1.00 \\
-¿Receta del gallo pinto?          & 1.00 \\
+¿Capital de Australia?            & 0.70 \\
+Guitarra acústica vs eléctrica    & 0.50 \\
+¿Receta del gallo pinto?          & 0.70 \\
 \midrule
-\textbf{Promedio}                 & \textbf{0.94} \\
+\textbf{Promedio}                 & \textbf{0.66} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -388,13 +388,32 @@ La Tabla~\ref{tab:websearch} presenta los scores del dataset \texttt{websearch}.
 \toprule
 \textbf{Pregunta} & \textbf{Score del evaluador} \\
 \midrule
-Última versión de LangChain       & 0.90 \\
-Precio API GPT-4o                 & 0.50 \\
+Última versión de LangChain       & 0.80 \\
+Precio API GPT-4o                 & 0.90 \\
 Novedades Google I/O 2025         & 0.70 \\
 ¿Qué es LangGraph?                & 0.70 \\
-Modelos OpenAI lanzados en 2025   & 0.70 \\
+Modelos OpenAI lanzados en 2025   & 0.50 \\
 \midrule
-\textbf{Promedio}                 & \textbf{0.70} \\
+\textbf{Promedio}                 & \textbf{0.72} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Scores del dataset \texttt{transactional} (Run txn-002, 5 ítems)}
+\label{tab:transactional}
+\centering
+\begin{tabular}{p{3.5cm}p{3.2cm}}
+\toprule
+\textbf{Pregunta} & \textbf{Score del evaluador} \\
+\midrule
+Resumen de riesgo MSR             & 0.70 \\
+Transacción mayor monto           & 0.70 \\
+Transacciones cliente 3           & 0.90 \\
+Transacciones sospechosas CMV     & 0.90 \\
+Transacciones dif. paises         & 0.70 \\
+\midrule
+\textbf{Promedio}                 & \textbf{0.78} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -409,18 +428,20 @@ Los datasets de LangFuse, no permiten evaluar una estructura de conversación de
 \toprule
 \textbf{Pregunta} & \textbf{Score del evaluador} \\
 \midrule
-Clasificación con 0.85            & 1.00 \\
-Diferencia apr. supervisado       & 0.70 \\
-Técnicas efectivas                & 0.70 \\
+Clasificación con 0.85            & 0.90 \\
+Diferencia apr. supervisado       & 1.00 \\
+Técnicas efectivas                & 0.50 \\
 Comparación red neuronal          & 1.00 \\
-Recomendación datasets grandes    & 0.90 \\
+Recomendación datasets grandes    & 1.00 \\
 \midrule
-\textbf{Promedio}                 & \textbf{0.86} \\
+\textbf{Promedio}                 & \textbf{0.88} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Resumen de promedios}
+
+En la tabla ~\ref{tab:resumen} se ve un resúmen del promedio de scores del evaluador LLM-as-judge. Se encuentra que en la mayoría de casos, los scores promedio del evaluador rondan por encima de 0.75, siendo la excepción el caso del dataset \texttt{fuera\_alcance}, el cual se otorgó menor nota por no responder la pregunta (comportamiento esperado del modelo), por lo que la menor nota es aceptable, mientras que el dataset \texttt{websearch} se redujo un poco de nota debido a que las respuestas esperadas no puede coincidir completamente con la búsqueda web. Se proporciona un archivo con los detalles de los experimentos de evaluación.
 
 \begin{table}[htbp]
 \caption{Promedio de \texttt{dataset\_evaluator} por dataset (Run 2)}
@@ -430,12 +451,12 @@ Recomendación datasets grandes    & 0.90 \\
 \toprule
 \textbf{Dataset} & \textbf{N} & \textbf{Score del evaluador} \\
 \midrule
-\texttt{factual}        & 10 & 0.88 \\
+\texttt{factual}        & 10 & 0.95 \\
 \texttt{comparacion}    & 5  & 0.98 \\
-\texttt{fuera\_alcance} & 5  & 0.94 \\
-\texttt{websearch}      & 5  & 0.70 \\
-\texttt{transactional}  & 5  & ---  \\
-\texttt{conversacion}   & 5  & 0.86  \\
+\texttt{fuera\_alcance} & 5  & 0.66 \\
+\texttt{websearch}      & 5  & 0.72 \\
+\texttt{transactional}  & 5  & 0.78  \\
+\texttt{conversacion}   & 5  & 0.88  \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -443,20 +464,6 @@ Recomendación datasets grandes    & 0.90 \\
 % ================================================================
 \section{Análisis de Errores}
 % ================================================================
-
-\subsection{Errores identificados en los resultados}
-
-\begin{enumerate}
-    \item \textbf{Atribución de autoría del quiz 2} (\texttt{dataset\_evaluator=0.50}): la respuesta del sistema listó cuatro autores de la semana 6 (David Blanco Láscarez, Emmanuel José Matamoros Jiménez, Roberto José Garita Mata y Victor Aymerich), mientras que la respuesta esperada era únicamente Roberto José Garita Mata y/o David Blanco Láscarez. El RAPTOR incluye todos los autores de la semana porque no distingue quién anotó específicamente el quiz. El \texttt{dataset\_evaluator} penalizó la respuesta por exceso de información.
-
-    \item \textbf{Técnicas para overfitting} (\texttt{dataset\_evaluator=0.70}): la respuesta incluyó ``aumentar la complejidad del modelo si es muy simple'' como caso complementario, que no aparecía en la respuesta esperada. La respuesta esperada listaba solo simplificar modelo, reducir dimensionalidad y usar más datos.
-
-    \item \textbf{Retropropagación} (\texttt{dataset\_evaluator=0.70}): la respuesta describió el proceso sin mencionar explícitamente la propagación hacia atrás del error como mecanismo, que era el punto clave de la respuesta esperada.
-
-    \item \textbf{Precio de la API de GPT-4o} (\texttt{dataset\_evaluator=0.50}): la búsqueda web retornó información sobre GPT-4.5 en lugar de GPT-4o, y la respuesta confundió ambos modelos. Este error refleja la limitación del agente web al no verificar que el resultado corresponda exactamente al modelo solicitado.
-
-    \item \textbf{Modelos OpenAI 2025} (\texttt{dataset\_evaluator=0.70}): el agente respondió desde su conocimiento de entrenamiento indicando que no puede buscar información sobre 2025, en lugar de activar la herramienta \texttt{buscar\_en\_web}. Este es el mismo problema de escalado del punto anterior.
-\end{enumerate}
 
 \subsection{Limitaciones del sistema}
 
@@ -501,8 +508,7 @@ LANGFUSE_PUBLIC_KEY=pk-...
 LANGFUSE_SECRET_KEY=sk-...
 LANGFUSE_HOST=https://cloud.langfuse.com
 TAVILY_API_KEY=tvly-...
-DATABASE_URL=postgresql://fraud_user:
-  fraud_pass@localhost:5432/fraud_db
+DATABASE_URL=postgresql...
 \end{verbatim}
 
 \subsection{Instalación de dependencias}
@@ -545,9 +551,12 @@ python run_experiments.py
 
 El sistema multi-agente desarrollado en su versión final tiene todos los componentes planificados implementados: el orquestador con cinco herramientas, el pipeline RAG con RAPTOR, query expansion y reranking, el agente web con Tavily, el agente transaccional con MCP Server sobre PostgreSQL, y memoria de sesión e histórica en SQLite.
 
-La evaluación experimental sobre los datasets ejecutados demuestran una ejecución altamente aceptable del agente, utilizando sus herramientas a cómo sea necesario y obteniendo la información correspondientes con la excepción de la búsqueda web que se mantiene entre la sobreutilización o subutilización de la herramienta de búsqueda web dependiendo de la configuración.
+La evaluación experimental sobre los datasets ejecutados demuestran una ejecución altamente aceptable del agente, utilizando sus herramientas a cómo sea necesario y obteniendo la información correspondientes.
 
 \begin{thebibliography}{00}
+
+\bibitem{evaluation_json}
+JSON evaluacion modelo 2026 [Online]. Available: \url{https://github.com/fabrimena/Tarea_4_5/blob/bd98ef7a3330296294ea61809ecafc41627698e6/experimentos_export.json}.
 
 \bibitem{openai_function_calling}
 OpenAI, ``Function calling,'' 2026. [Online]. Available: \url{https://platform.openai.com/docs/guides/function-calling}. [Accessed: Jun. 2026].

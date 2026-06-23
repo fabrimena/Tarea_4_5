@@ -62,6 +62,14 @@ def create_fraud_case(
     """Crea un caso de fraude/revisión sin modificar la transacción original."""
     return tools.create_fraud_case(transaction_id, reason, severity, justification)
 
+@mcp.tool()
+def search_customer_by_name(name: str, justification: str) -> str:
+    """Busca clientes por nombre. 
+    Parámetros requeridos: name (nombre del cliente a buscar), justification (razón de la consulta).
+    Usar antes de cualquier otra herramienta cuando el usuario mencione un cliente por nombre.
+    Ejemplo: name='Laura Jiménez', justification='Resolver consulta del usuario sobre sus transacciones.'
+    """
+    return tools.search_customer_by_name(name, justification)
 
 if __name__ == "__main__":
     mcp.run()

@@ -230,7 +230,6 @@ def get_recent_flagged_transactions(days: int, justification: str) -> str:
         ensure_ascii=False,
     )
 
-
 def create_fraud_case(transaction_id: int, reason: str, severity: str, justification: str) -> str:
     validate_justification(justification)
 
@@ -267,3 +266,35 @@ def create_fraud_case(transaction_id: int, reason: str, severity: str, justifica
     case["note"] = "No se modificó la transacción existente; solo se creó un caso de revisión."
     case["data_used"] = ["fraud_cases", "transactions"]
     return json.dumps(case, ensure_ascii=False)
+
+def search_customer_by_name(name: str, justification: str) -> str:
+    validate_justification(justification)
+
+    with get_connection() as conn:
+        log_tool_access(conn, "search_customer_by_name", justification, {"name": name})
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Enable unaccent extension if not already active
+            cur.execute("CREATE EXTENSION IF NOT EXISTS unaccent;")
+
+            cur.execute(
+                """
+                SELECT id, full_name, country, risk_level
+                FROM customers
+                WHERE unaccent(full_name) ILIKE unaccent(%s)
+                LIMIT 5
+                """,
+                (f"%{name}%",),
+            )
+            rows = cur.fetchall()
+
+    if not rows:
+        return json.dumps(
+            {"error": f"No se encontró ningún cliente con nombre '{name}'."},
+            ensure_ascii=False
+        )
+
+    return json.dumps(
+        {"results": [dict(r) for r in rows], "data_used": ["customers"]},
+        ensure_ascii=False,
+    )

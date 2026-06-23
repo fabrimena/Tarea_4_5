@@ -33,7 +33,7 @@ Dispones de cinco herramientas:
 4. buscar_en_web            → SOLO úsala en estos dos casos:
                             a) El usuario lo solicita EXPLÍCITAMENTE con frases como
                             "busca en internet", "busca en la web", "busca en línea",
-                            "qué dice internet", "busca afuera". En este caso úsala
+                            "qué dice internet", "busca afuera", "qué dice la web", etc. En este caso úsala
                             DIRECTAMENTE sin pasar por consultar_apuntes primero.
                             b) Ya usaste consultar_apuntes, no encontraste información
                             suficiente, Y el usuario confirmó que desea la búsqueda
@@ -123,12 +123,12 @@ Contexto:
 # ==========================================================
 
 def run_transactional_agent(args: dict) -> dict:
-    accion = args["accion"]
+    accion        = args["accion"]
     justificacion = args["justificacion"]
 
     mcp_args = {"justification": justificacion}
     optional_fields = [
-        "transaction_id", "customer_id", "days", "reason", "severity",
+        "name", "transaction_id", "customer_id", "days", "reason", "severity",
         "status", "is_flagged", "min_amount", "max_amount", "start_date", "end_date",
     ]
     for field in optional_fields:
@@ -138,6 +138,23 @@ def run_transactional_agent(args: dict) -> dict:
     with lf.start_as_current_observation(as_type="span", name="transactional_agent") as span:
         span.update(input={"accion": accion, "justificacion": justificacion})
 
+        # ── Step 1: if name-based action, resolve to customer_id first ──
+        if accion != "search_customer_by_name" and "name" in mcp_args and "customer_id" not in mcp_args:
+            with lf.start_as_current_observation(as_type="span", name="mcp_call:search_customer_by_name") as resolve_span:
+                resolve_args = {"justification": justificacion, "name": mcp_args.pop("name")}
+                resolve_span.update(input=resolve_args)
+                resolve_result = call_mcp_tool("search_customer_by_name", resolve_args)
+                resolve_span.update(output=resolve_result)
+
+            results = resolve_result.get("results", [])
+            if not results:
+                answer = f"No se encontró ningún cliente con ese nombre en la base de datos."
+                span.update(output={"answer": answer})
+                return {"answer": answer, "mcp_result": resolve_result, "retrieved_documents": [], "metadatas": [], "scores": []}
+
+            mcp_args["customer_id"] = results[0]["id"]
+
+        # ── Step 2: execute the actual intended action ──
         with lf.start_as_current_observation(as_type="span", name=f"mcp_call:{accion}") as mcp_span:
             mcp_span.update(input=mcp_args)
             try:
@@ -149,6 +166,13 @@ def run_transactional_agent(args: dict) -> dict:
         prompt = f"""
 Eres el Agente Transaccional. Interpreta el resultado del MCP y responde al usuario.
 Indica qué datos consultaste y si hubo restricciones de seguridad.
+
+REGLA: Cuando el usuario mencione un cliente por nombre:
+1. Llama PRIMERO a search_customer_by_name con:
+   - name: el nombre mencionado por el usuario
+   - justification: razón de la búsqueda
+2. Usa el ID retornado para las siguientes llamadas.
+Nunca asumas ni inventes un customer_id.
 
 Pregunta original:
 {args.get('pregunta_original', '')}
@@ -324,7 +348,17 @@ def run_agent(question: str, chat_history: list[dict] = None, session_id: int = 
                         "type": "function",
                         "function": {
                             "name": "consultar_transacciones",
-                            "description": "Consulta transacciones ficticias, fraude o riesgo de clientes vía MCP Server",
+                            "description": (
+                                "Consulta transacciones ficticias, fraude o riesgo de clientes vía MCP Server. "
+                                "Cuando el usuario mencione un cliente por nombre, usa la acción que realmente necesitas "
+                                "(search_transactions, get_customer_risk_summary, etc.) y pasa el nombre en parametros. "
+                                "El sistema resolverá el nombre a customer_id automáticamente. "
+                                "NUNCA uses accion=search_customer_by_name directamente — eso es interno. "
+                                "Ejemplos correctos:\n"
+                                "- '¿Transacciones de Laura Jiménez?' → accion=search_transactions, parametros={name: 'Laura Jiménez'}\n"
+                                "- '¿Riesgo de Carlos Méndez?' → accion=get_customer_risk_summary, parametros={name: 'Carlos Méndez'}\n"
+                                "- '¿Transacción ID 4?' → accion=get_transaction_by_id, parametros={transaction_id: 4}"
+                            ),
                             "parameters": {
                                 "type": "object",
                                 "properties": {
@@ -340,28 +374,23 @@ def run_agent(question: str, chat_history: list[dict] = None, session_id: int = 
                                     },
                                     "justificacion": {
                                         "type": "string",
-                                        "description": "Por qué se necesita esta consulta (mínimo 10 caracteres)",
+                                        "description": "Razón obligatoria para acceder a los datos transaccionales.",
                                     },
-                                    "transaction_id": {"type": "integer"},
-                                    "customer_id":    {"type": "integer"},
-                                    "days":           {"type": "integer"},
-                                    "reason":         {"type": "string"},
-                                    "severity": {
-                                        "type": "string",
-                                        "enum": ["low", "medium", "high", "critical"],
+                                    "parametros": {
+                                        "type": "object",
+                                        "description": (
+                                            "Parámetros específicos según la acción elegida. Ejemplos:\n"
+                                            "- search_customer_by_name: {\"name\": \"Laura Jiménez\"}\n"
+                                            "- get_customer_risk_summary: {\"customer_id\": 5}\n"
+                                            "- get_transaction_by_id: {\"transaction_id\": 4}\n"
+                                            "- search_transactions: {\"customer_id\": 2, \"is_flagged\": true}\n"
+                                            "- get_recent_flagged_transactions: {\"days\": 7}\n"
+                                            "- create_fraud_case: {\"transaction_id\": 4, \"reason\": \"...\", \"severity\": \"high\"}"
+                                        ),
                                     },
-                                    "status": {
-                                        "type": "string",
-                                        "enum": ["approved", "failed", "pending"],
-                                    },
-                                    "is_flagged":  {"type": "boolean"},
-                                    "min_amount":  {"type": "number"},
-                                    "max_amount":  {"type": "number"},
-                                    "start_date":  {"type": "string"},
-                                    "end_date":    {"type": "string"},
                                 },
                                 "required": ["accion", "justificacion"],
-                            }
+                            },
                         },
                     },
                     {
@@ -474,9 +503,18 @@ def run_agent(question: str, chat_history: list[dict] = None, session_id: int = 
                         last_tool_result = tool_result
 
                     elif tool_name == "consultar_transacciones":
-                        args["pregunta_original"] = question
-                        tool_result  = run_transactional_agent(args)
+                        accion        = args["accion"]
+                        justificacion = args["justificacion"]
+                        parametros    = args.get("parametros", {})
+
+                        tool_result = run_transactional_agent({
+                            "accion":            accion,
+                            "justificacion":     justificacion,
+                            "pregunta_original": question,
+                            **parametros,
+                        })
                         tool_content = tool_result["answer"]
+                        last_tool_result = tool_result
 
                     elif tool_name == "buscar_en_web":
                         tool_result  = ask_web_search(args["consulta"])

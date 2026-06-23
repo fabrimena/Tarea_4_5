@@ -129,16 +129,15 @@ CONVERSATIONS = [
     {
         "id": "conv-05",
         "turns": [
-            {"question": "¿Qué es el aprendizaje por refuerzo?"},
+            {"question": "¿Qué es el aprendizaje no supervisado?"},
             {"question": "¿Cuáles son sus componentes principales?"},
-            {"question": "¿En qué se diferencia del aprendizaje supervisado que vimos antes?"},  # ← scored
+            {"question": "¿En qué se diferencia del aprendizaje supervisado?"},  # ← scored
         ],
         "expected_output": (
             "A diferencia del aprendizaje supervisado, que aprende de pares etiquetados "
-            "(entrada, salida correcta), el aprendizaje por refuerzo aprende mediante "
-            "interacción con un entorno: el agente toma acciones, recibe recompensas o "
-            "penalizaciones, y ajusta su política para maximizar la recompensa acumulada. "
-            "No requiere datos etiquetados sino señales de retroalimentación del entorno."
+            "(entrada, salida correcta), el aprendizaje no supervisado aprende de la misma "
+            "entrada, aprendiendo a reconstruirla con una menor cantidad de datos"
+            "No requiere datos etiquetados sino que se compara la salida del modelo con su entrada."
         ),
     },
 ]
@@ -234,3 +233,4 @@ if __name__ == "__main__":
         else ("factual", "comparacion", "fuera_alcance", "websearch", "transactional")
     )
     evaluate_agent(run_name, dataset_names=dataset_names)
+    evaluate_agent_conversation(run_name)

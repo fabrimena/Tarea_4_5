@@ -15,9 +15,8 @@ from psycopg2.extras import execute_batch
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://fraud_user:fraud_pass@localhost:5432/fraud_db",
+    "postgresql://fraud_user:fraud_pass@localhost:5433/fraud_db",
 )
-
 
 def connect():
     return psycopg2.connect(DATABASE_URL)
