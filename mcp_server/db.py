@@ -7,7 +7,7 @@ from psycopg2.extras import RealDictCursor
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://fraud_user:fraud_pass@localhost:5432/fraud_db",
+    "postgresql://fraud_user:fraud_pass@localhost:5433/fraud_db",
 )
 
 MAX_DATE_RANGE_DAYS = 90

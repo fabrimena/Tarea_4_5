@@ -4,12 +4,6 @@ build_raptor_index.py
 Agrega resúmenes jerárquicos RAPTOR al ChromaDB existente (./vectordb).
 NO borra ni modifica los chunks originales — solo añade nodos nuevos.
 
-Ejecutar una sola vez (o cuando cambien los apuntes):
-    python build_raptor_index.py
-
-Para forzar la regeneración de todas las semanas:
-    python build_raptor_index.py --rebuild
-
 Niveles que construye:
   Nivel 1 → un resumen por semana   (id: raptor_semana_<N>)
   Nivel 2 → un resumen global       (id: raptor_global)
@@ -39,7 +33,7 @@ collection = chroma_client.get_or_create_collection(name="apuntes_ai")
 
 MAX_CHUNKS_PER_WEEK = 30
 
-REBUILD = "--rebuild" in sys.argv
+REBUILD = True
 
 # ----------------------------------------------------------
 # Mapeo hardcoded: semana → número de quiz (muy dificil inferir los quizzes desde los documentos)
@@ -299,29 +293,3 @@ RESUMEN GLOBAL:"""
             "total_chunks": len(week_summaries),
         }]
     )
-
-
-# ----------------------------------------------------------
-# Main
-# ----------------------------------------------------------
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("RAPTOR — Construcción de índice jerárquico")
-    if REBUILD:
-        print("Modo: REBUILD (regenerando todos los resúmenes)")
-    print("=" * 60)
-    print(f"Documentos en ChromaDB antes: {collection.count()}\n")
-
-    print("[ NIVEL 1 ] Resúmenes por semana")
-    print("-" * 40)
-    week_summaries = build_week_summaries()
-
-    print("\n[ NIVEL 2 ] Resumen global del curso")
-    print("-" * 40)
-    build_global_summary(week_summaries)
-
-    print("\n" + "=" * 60)
-    print(f"Documentos en ChromaDB después: {collection.count()}")
-    print("RAPTOR completado ✓")
-    print("=" * 60)
